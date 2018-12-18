@@ -1,3 +1,4 @@
 tahoe.log
 cache/
 .mayaSwatches/
+*.pyc

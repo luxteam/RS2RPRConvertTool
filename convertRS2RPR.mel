@@ -1047,27 +1047,41 @@ global proc string convertRedshiftMaterial (string $rsMaterial, string $source) 
         copyPropertyColor($rpr, $rsMaterial, "refl_color", "reflectColor");
     }
     if ($refl_fr_mode == 2) {
+
+        $blend_value = `shadingNode -asUtility RPRBlendValue`;
+        connectAttr($blend_value + ".out") ($rpr + ".reflectColor");
+
+        copyPropertyColor($blend_value, $rsMaterial, "refl_reflectivity", "inputA");
+        copyPropertyColor($blend_value, $rsMaterial, "diffuse_color", "inputB");
+        copyProperty($blend_value, $rsMaterial, "refl_metalness", "weight");
+
         $metalness = `getAttr ($rsMaterial + ".refl_metalness" )`;
         if ($metalness>0) {
             setAttr ($rpr + ".reflectMetalMaterial") 1;
             copyProperty($rpr, $rsMaterial, "refl_metalness", "reflectMetalness");
         }
 
-        float $diffuse_color[] = `getAttr ($rsMaterial + ".diffuse_color")`;
-
-        $blend_color[0] = $refl_reflectivity[0] * $diffuse_color[0];
-        $blend_color[1] = $refl_reflectivity[1] * $diffuse_color[1];
-        $blend_color[2] = $refl_reflectivity[2] * $diffuse_color[2];
-
-        setAttr ($rpr + ".reflectColor") $blend_color[0] $blend_color[1] $blend_color[2];
-
     }
     if ($refl_fr_mode == 1) {
 
         float $edge_tint[] = `getAttr ($rsMaterial + ".refl_edge_tint")`;
 
-        // not metal
+        $arithmetic = `shadingNode -asUtility RPRArithmetic`;
+        connectAttr -f ($arithmetic + ".out") ($rpr + ".reflectColor");
+
+        $blend_value = `shadingNode -asUtility RPRBlendValue`;
+        connectAttr -f ($blend_value + ".out") ($arithmetic + ".inputB");
+
+        $fresnel = `shadingNode -asUtility RPRFresnel`;
+        connectAttr -f ($fresnel + ".out") ($blend_value + ".weight");
+
+        setAttr ($fresnel + ".ior") 1.5;
+
+        copyPropertyColor($arithmetic, $rsMaterial, "refl_color", "inputA");
+        setAttr ($arithmetic + ".operation") 2;
+
         if (!($edge_tint[0] || $edge_tint[1] || $edge_tint[2])) {
+
             float $max_value = `max $refl_reflectivity[0] $refl_reflectivity[1]`;
             $max_value = `max $max_value $refl_reflectivity[2]`;
             if ($max_value == 1) {
@@ -1081,47 +1095,22 @@ global proc string convertRedshiftMaterial (string $rsMaterial, string $source) 
                 setAttr ($rpr + ".reflectIOR") 10;
             }
 
-            float $refl_color[] = `getAttr ($rsMaterial + ".refl_color")`;
+            copyPropertyColor($blend_value, $rsMaterial, "refl_reflectivity", "inputA");
+            copyPropertyColor($blend_value, $rsMaterial, "refl_color", "inputB");
 
-            if ($refl_color[0] != 0 && $refl_reflectivity[0] != 0) {
-                $blend_color[0] = ($refl_reflectivity[0] + $refl_color[0]) / 2;
-            } else {
-                $blend_color[0] = 0;
-            }
-            if ($refl_color[1] != 0 && $refl_reflectivity[1] != 0) {
-                $blend_color[1] = ($refl_reflectivity[1] + $refl_color[1]) / 2;
-            } else {
-                $blend_color[1] = 0;
-            }
-            if ($refl_color[2] != 0 && $refl_reflectivity[2] != 0) {
-                $blend_color[2] = ($refl_reflectivity[2] + $refl_color[2]) / 2;
-            } else {
-                $blend_color[2] = 0;
-            }
-            setAttr ($rpr + ".reflectColor") $blend_color[0] $blend_color[1] $blend_color[2];
-
-        // metal 
         } else {
-    
-            if ($edge_tint[0] != 0 && $refl_reflectivity[0] != 0) {
-                $blend_color[0] = ($refl_reflectivity[0] + $edge_tint[0]) / 2;
-            } else {
-                $blend_color[0] = 0;
-            }
-            if ($edge_tint[1] != 0 && $refl_reflectivity[1] != 0) {
-                $blend_color[1] = ($refl_reflectivity[1] + $edge_tint[1]) / 2;
-            } else {
-                $blend_color[1] = 0;
-            }
-            if ($edge_tint[2] != 0 && $refl_reflectivity[2] != 0) {
-                $blend_color[2] = ($refl_reflectivity[2] + $edge_tint[2]) / 2;
-            } else {
-                $blend_color[2] = 0;
-            }
-            setAttr ($rpr + ".reflectColor") $blend_color[0] $blend_color[1] $blend_color[2];
+
+            copyPropertyColor($blend_value, $rsMaterial, "refl_reflectivity", "inputA");
+            copyPropertyColor($blend_value, $rsMaterial, "refl_edge_tint", "inputB");
+
             setAttr ($rpr + ".reflectMetalMaterial") 1;
-            setAttr ($rpr + ".reflectMetalness") 1;
+            copyProperty($rpr, $rsMaterial, "refl_metalness", "reflectMetalness");
+            if (`getAttr ($rpr + ".reflectMetalness")` != 1){
+                setAttr ($rpr + ".reflectMetalness") 1;
+            }
+
         }
+
     }
     if ($refl_fr_mode == 0) {
         copyProperty($rpr, $rsMaterial, "refl_ior30", "reflectIOR");

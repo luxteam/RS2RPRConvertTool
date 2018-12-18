@@ -793,49 +793,59 @@ def convertRedshiftMaterial(rsMaterial, source):
 		copyProperty(rprMaterial, rsMaterial, "reflectColor", "refl_color")
 
 	elif refl_fr_mode == 2:
-		metalness = getProperty(rsMaterial, "refl_metalness")
-		if metalness > 0:
-			setProperty(rprMaterial, "reflectMetalMaterial", 1)
-			copyProperty(rprMaterial, rsMaterial, "reflectMetalness", "refl_metalness")
 
-		# blend color from diffuse and reflectivity to reflect color
-		# no_rpr_analog
-		diffuse_color = getProperty(rsMaterial, "diffuse_color")
-		blend_color = (refl_reflectivity[0] * diffuse_color[0], refl_reflectivity[1] * diffuse_color[1], refl_reflectivity[2] * diffuse_color[2])
-		if mapDoesNotExist(rprMaterial, rsMaterial, "reflectColor", "refl_color"):
-				setProperty(rprMaterial, "reflectColor", tuple(blend_color))
+		try:
+			blend_value = cmds.shadingNode("RPRBlendValue", asUtility=True)
+			cmds.connectAttr(blend_value + ".out", rprMaterial + ".reflectColor")
 
+			# blend color from diffuse and reflectivity to reflect color
+			# no_rpr_analog
+
+			copyProperty(blend_value, rsMaterial, "inputA", "refl_reflectivity")
+			copyProperty(blend_value, rsMaterial, "inputB", "diffuse_color")
+			copyProperty(blend_value, rsMaterial, "weight", "refl_metalness")
+
+			metalness = getProperty(rsMaterial, "refl_metalness")
+			if metalness > 0:
+				setProperty(rprMaterial, "reflectMetalMaterial", 1)
+				copyProperty(rprMaterial, rsMaterial, "reflectMetalness", "refl_metalness")
+		except Exception as ex:
+			print(ex)
+			print("Error while metall fresnel mode conversion")
+
+	# no_rpr_analog
 	elif refl_fr_mode == 1:
 
 		edge_tint = getProperty(rsMaterial, "refl_edge_tint")
-		blend_color = []
-		# blend color from edge tint and reflectivity to reflect color for not metal materials
-		# no_rpr_analog
+
+		arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		cmds.connectAttr(arithmetic + ".out", rprMaterial + ".reflectColor", f=True)
+
+		blend_value = cmds.shadingNode("RPRBlendValue", asUtility=True)
+		cmds.connectAttr(blend_value + ".out", arithmetic + ".inputB", f=True)
+
+		fresnel = cmds.shadingNode("RPRFresnel", asUtility=True)
+		cmds.connectAttr(fresnel + ".out", blend_value + ".weight", f=True)
+
+		copyProperty(arithmetic, rsMaterial, "inputA", "refl_color")
+		setProperty(arithmetic, "operation", 2)
+
+		setProperty(fresnel, "ior", 1.5)
+
 		if edge_tint[0] or edge_tint[1] or edge_tint[2]:
 
-			if edge_tint[0] and refl_reflectivity[0]:
-				blend_color.append((refl_reflectivity[0] + edge_tint[0]) / 2)
-			else:
-				blend_color.append(0)
+			copyProperty(blend_value, rsMaterial, "inputA", "refl_reflectivity")
+			copyProperty(blend_value, rsMaterial, "inputB", "refl_edge_tint")
 
-			if edge_tint[1] and refl_reflectivity[1]:
-				blend_color.append((refl_reflectivity[1] + edge_tint[1]) / 2)
-			else:
-				blend_color.append(0)
-
-			if edge_tint[2] and refl_reflectivity[2]:
-				blend_color.append((refl_reflectivity[2] + edge_tint[2]) / 2)
-			else:
-				blend_color.append(0)
-
-			if mapDoesNotExist(rprMaterial, rsMaterial, "reflectColor", "refl_color"):
-				setProperty(rprMaterial, "reflectColor", tuple(blend_color))
 			setProperty(rprMaterial, "reflectMetalMaterial", 1)
-			setProperty(rprMaterial, "reflectMetalness", 1)
+			copyProperty(rprMaterial, rsMaterial, "reflectMetalness", "refl_metalness")
+			if getProperty(rprMaterial, "reflectMetalness") != 1:
+				setProperty(rprMaterial, "reflectMetalness", 1)
 
-		# blend color from edge tint and reflectivity to reflect color for not metal materials
-		# no_rpr_analog
 		else:
+
+			copyProperty(blend_value, rsMaterial, "inputA", "refl_reflectivity")
+			copyProperty(blend_value, rsMaterial, "inputB", "refl_color")
 
 			max_refl = max(refl_reflectivity)
 			if max_refl == 1:
@@ -848,27 +858,7 @@ def convertRedshiftMaterial(rsMaterial, source):
 				ior = 10
 
 			setProperty(rprMaterial, "reflectIOR", ior)
-
-			refl_color = getProperty(rsMaterial, "refl_color")
-			blend_color = []
-
-			if refl_color[0] and refl_reflectivity[0]:
-				blend_color.append((refl_reflectivity[0] + refl_color[0]) / 2)
-			else:
-				blend_color.append(0)
-
-			if refl_color[1] and refl_reflectivity[1]:
-				blend_color.append((refl_reflectivity[1] + refl_color[1]) / 2)
-			else:
-				blend_color.append(0)
-
-			if refl_color[2] and refl_reflectivity[2]:
-				blend_color.append((refl_reflectivity[2] + refl_color[2]) / 2)
-			else:
-				blend_color.append(0)
-
-			if mapDoesNotExist(rprMaterial, rsMaterial, "reflectColor", "refl_color"):
-				setProperty(rprMaterial, "reflectColor", tuple(blend_color))
+			
 
 	else:
 		# advanced ior
@@ -1355,13 +1345,13 @@ def convertRedshiftPhysicalLight(rs_light):
 
 	# Copy properties from rsLight
 	lightType = getProperty(rs_light, "lightType")
-	if lightType == 0: # area
+	if lightType == 0:
 		setProperty(rprLightShape, "lightType", 0)
-	elif lightType == 1:  # point
+	elif lightType == 1: 
 		setProperty(rprLightShape, "lightType", 2)
-	elif lightType == 2:  # spot
+	elif lightType == 2: 
 		setProperty(rprLightShape, "lightType", 1)
-	elif lightType == 3:  # directional
+	elif lightType == 3:  
 		setProperty(rprLightShape, "lightType", 3)
 	
 	colorMode = getProperty(rs_light, "colorMode")
