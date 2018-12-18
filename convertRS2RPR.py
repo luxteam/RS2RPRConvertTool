@@ -804,8 +804,8 @@ def convertRedshiftMaterial(rsMaterial, source):
 			# blend color from diffuse and reflectivity to reflect color
 			# no_rpr_analog
 
-			copyProperty(blend_value, rsMaterial, "inputA", "diffuse_color")
-			copyProperty(blend_value, rsMaterial, "inputB", "refl_reflectivity")
+			copyProperty(blend_value, rsMaterial, "inputA", "refl_reflectivity")
+			copyProperty(blend_value, rsMaterial, "inputB", "diffuse_color")
 			copyProperty(blend_value, rsMaterial, "weight", "refl_metalness")
 
 			metalness = getProperty(rsMaterial, "refl_metalness")

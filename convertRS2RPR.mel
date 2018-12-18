@@ -1055,8 +1055,8 @@ global proc string convertRedshiftMaterial (string $rsMaterial, string $source) 
         $blend_value = `shadingNode -asUtility RPRBlendValue`;
         connectAttr($blend_value + ".out", $rpr + ".reflectColor");
 
-        copyPropertyColor($blend_value, $rsMaterial, "diffuse_color", "inputA");
-        copyPropertyColor($blend_value, $rsMaterial, "refl_reflectivity", "inputB");
+        copyPropertyColor($blend_value, $rsMaterial, "refl_reflectivity", "inputA");
+        copyPropertyColor($blend_value, $rsMaterial, "diffuse_color", "inputB");
         copyProperty($blend_value, $rsMaterial, "refl_metalness", "weight");
 
         $metalness = `getAttr ($rsMaterial + ".refl_metalness" )`;
