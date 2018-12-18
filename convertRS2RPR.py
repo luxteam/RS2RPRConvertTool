@@ -28,7 +28,6 @@ v.2.9.2 - Update conversion of color+edge tint mode in RedshiftMaterial, VolumeS
 v.2.9.2 - Update conversion of metalness in RedshiftArchitectural
 v.2.9.4 - Multiscatter layers conversion update in RedshiftMaterial
 v.2.9.5 - Intensity conversion in dome light
-v.2.9.6 - Intensity conversion in Redshift Environment
 
 '''
 
@@ -1277,8 +1276,6 @@ def convertRedshiftEnvironment(env):
   
 	# display IBL option
 	copyProperty(iblShape, env, "display", "backPlateEnabled")
-	exposure = getProperty(env, "exposure0")
-	setProperty(iblShape, "intensity", 1 * 2 ** exposure)
 
 	# Copy properties from rsEnvironment
 	try:
