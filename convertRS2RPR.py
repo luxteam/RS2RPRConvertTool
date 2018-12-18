@@ -838,6 +838,7 @@ def convertRedshiftMaterial(rsMaterial, source):
 			copyProperty(blend_value, rsMaterial, "inputB", "refl_edge_tint")
 
 			copyProperty(arithmetic, rsMaterial, "inputA", "refl_color")
+			setProperty(arithmetic, "operation", 2)
 
 		except Exception as ex:
 			print(ex)

@@ -1082,6 +1082,7 @@ global proc string convertRedshiftMaterial (string $rsMaterial, string $source) 
         copyPropertyColor($blend_value, $rsMaterial, "refl_edge_tint", "inputB");
 
         copyPropertyColor($arithmetic, $rsMaterial, "refl_color", "inputA");
+        setAttr ($arithmetic + ".operation") 2;
 
     }
     if ($refl_fr_mode == 0) {
