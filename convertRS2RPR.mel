@@ -2351,26 +2351,33 @@ global proc auto_launch(){
 }
 
 
-string $filePath = "";
-print("Convertion start!");
-float $startTime = 0;
-float $testTime = 0;
-$startTime = `timerX`;
-convertScene();
-$testTime = `timerX -startTime $startTime`;
-print("Convertion finished! Time: " + $testTime);
+global proc manual_launch(){
+    global int $manual;
+    
+    if ($manual == 0) {
+        string $filePath = "";
+        print("Convertion start!");
+        float $startTime = 0;
+        float $testTime = 0;
+        $startTime = `timerX`;
+        convertScene();
+        $testTime = `timerX -startTime $startTime`;
+        print("Convertion finished! Time: " + $testTime);
 
-$response = `confirmDialog -title "Convertation finished" 
-                          -message ("Total time: " + $testTime + "\nDelete all redshift instances?")
-                          -button "Yes" 
-                          -button "No"
-                          -defaultButton "Yes"
-                          -cancelButton "No"
-                          -dismissString "No"`;
-        
-if( $response == "Yes" ) {
-    cleanScene();
+        $response = `confirmDialog -title "Convertation finished" 
+                                  -message ("Total time: " + $testTime + "\nDelete all redshift instances?")
+                                  -button "Yes" 
+                                  -button "No"
+                                  -defaultButton "Yes"
+                                  -cancelButton "No"
+                                  -dismissString "No"`;
+                
+        if( $response == "Yes" ) {
+            cleanScene();
+        }
+
+        system("load " + `file -q -sceneName` + ".log" );
+    }
 }
 
-system("load " + `file -q -sceneName` + ".log" );
-
+manual_launch();
