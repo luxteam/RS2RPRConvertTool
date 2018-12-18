@@ -27,7 +27,6 @@ v.2.9.1 - Conversion of light units
 v.2.9.2 - Update conversion of color+edge tint mode in RedshiftMaterial, VolumeScattering update
 v.2.9.2 - Update conversion of metalness in RedshiftArchitectural
 v.2.9.4 - Multiscatter layers conversion update in RedshiftMaterial
-v.2.9.5 - Intensity conversion in dome light
 
 '''
 
@@ -1317,9 +1316,6 @@ def convertRedshiftDomeLight(dome_light):
 	start_log(dome_light, iblShape)
 
 	# display IBL option
-	exposure = getProperty(dome_light, "exposure0")
-	setProperty(iblShape, "intensity", 1 * 2 ** exposure)
-
 	copyProperty(iblShape, dome_light, "display", "background_enable")
 
 	try:
