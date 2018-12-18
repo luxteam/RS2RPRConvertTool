@@ -23,10 +23,13 @@ v.2.6 - RedshiftIncandescent conversion updates.
 v.2.7 - RedshiftMaterial & RedshiftSubSurface conversion updates
 v.2.8 - RedshiftIESLight & RedshiftPortalLight conversion
 v.2.9 - Fresnel mode & ss units mode conversion updates in RedshiftMaterial 
-v.2.9.1 - Conversion of light units
-v.2.9.2 - Update conversion of color+edge tint mode in RedshiftMaterial, VolumeScattering update
-v.2.9.2 - Update conversion of metalness in RedshiftArchitectural
-v.2.9.4 - Multiscatter layers conversion update in RedshiftMaterial
+        Conversion of light units
+        Update conversion of color+edge tint mode in RedshiftMaterial, VolumeScattering update
+        Update conversion of metalness in RedshiftArchitectural
+        Multiscatter layers conversion update in RedshiftMaterial
+v.2.10 - Intensity conversion in dome light
+        Intensity conversion in Redshift Environment
+        Update conversion of fresnel modes in RedshiftMaterial
 
 */
 
