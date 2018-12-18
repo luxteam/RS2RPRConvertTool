@@ -28,6 +28,7 @@ v.2.9.2 - Update conversion of color+edge tint mode in RedshiftMaterial, VolumeS
 v.2.9.2 - Update conversion of metalness in RedshiftArchitectural
 v.2.9.4 - Multiscatter layers conversion update in RedshiftMaterial
 v.2.9.5 - Intensity conversion in dome light
+v.2.9.6 - Intensity conversion in Redshift Environment
 
 */
 
@@ -1785,6 +1786,9 @@ global proc convertRedshiftEnvironment(string $env) {
     fclose $fileId;
   
     // display IBL option
+    float $exposure = `getAttr ($env + ".exposure0")`;
+    print("EXP:" + $exposure);
+    setAttr ($iblShape + ".intensity") (1 * (`pow 2 $exposure`));
     copyProperty($iblShape, $env, "backPlateEnabled", "display");
 
     // Copy properties from rsEnvironment
@@ -1936,7 +1940,6 @@ global proc convertRedshiftPhysicalLight(string $rs_light) {
     int $unitsType = `getAttr ($rs_light + ".unitsType")`;
     if ($unitsType == 0) {
         setAttr ($lightShape + ".intensityUnits") 1;
-        print("TEEE1");
         setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`));
     } else if ($unitsType == 1) {
         setAttr ($lightShape + ".intensityUnits") 1;
