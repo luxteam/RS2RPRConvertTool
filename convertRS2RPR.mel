@@ -1068,6 +1068,8 @@ global proc string convertRedshiftMaterial (string $rsMaterial, string $source) 
     }
     if ($refl_fr_mode == 1) {
 
+        float $edge_tint[] = `getAttr ($rsMaterial + ".refl_edge_tint")`;
+
         $arithmetic = `shadingNode -asUtility RPRArithmetic`;
         connectAttr($arithmetic + ".out", $rpr + ".reflectColor");
 
@@ -1078,11 +1080,40 @@ global proc string convertRedshiftMaterial (string $rsMaterial, string $source) 
         connectAttr($fresnel + ".out", $blend_value + ".weight");
 
         setAttr ($fresnel + ".ior") 1.5;
-        copyPropertyColor($blend_value, $rsMaterial, "refl_reflectivity", "inputA");
-        copyPropertyColor($blend_value, $rsMaterial, "refl_edge_tint", "inputB");
 
         copyPropertyColor($arithmetic, $rsMaterial, "refl_color", "inputA");
         setAttr ($arithmetic + ".operation") 2;
+
+        if (!($edge_tint[0] || $edge_tint[1] || $edge_tint[2])) {
+
+            float $max_value = `max $refl_reflectivity[0] $refl_reflectivity[1]`;
+            $max_value = `max $max_value $refl_reflectivity[2]`;
+            if ($max_value == 1) {
+                $max_value = 0.9999;
+            }
+            if ($max_value == 0) {
+                $max_value = 0.0001;
+            }
+            float $ior = -1 * ($max_value + 1 + 2 * `sqrt $max_value`) / ($max_value - 1);
+            if (catch(`setAttr ($rpr + ".reflectIOR") $ior`)) { 
+                setAttr ($rpr + ".reflectIOR") 10;
+            }
+
+            copyPropertyColor($blend_value, $rsMaterial, "refl_reflectivity", "inputA");
+            copyPropertyColor($blend_value, $rsMaterial, "refl_color", "inputB");
+
+        } else {
+
+            copyPropertyColor($blend_value, $rsMaterial, "refl_reflectivity", "inputA");
+            copyPropertyColor($blend_value, $rsMaterial, "refl_edge_tint", "inputB");
+
+            setAttr ($rpr + ".reflectMetalMaterial") 1;
+            copyProperty($rpr, $rsMaterial, "refl_metalness", "reflectMetalness");
+            if (`getAttr ($rpr + ".reflectMetalness")` != 1){
+                setAttr ($rpr + ".reflectMetalness") 1;
+            }
+
+        }
 
     }
     if ($refl_fr_mode == 0) {
