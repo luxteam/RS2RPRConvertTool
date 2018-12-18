@@ -23,14 +23,12 @@ v.2.6 - RedshiftIncandescent conversion updates.
 v.2.7 - RedshiftMaterial & RedshiftSubSurface conversion updates
 v.2.8 - RedshiftIESLight & RedshiftPortalLight conversion
 v.2.9 - Fresnel mode & ss units mode conversion updates in RedshiftMaterial 
-        Conversion of light units
-        Update conversion of color+edge tint mode in RedshiftMaterial, VolumeScattering update
-        Update conversion of metalness in RedshiftArchitectural
-        Multiscatter layers conversion update in RedshiftMaterial
-v.2.10 - Intensity conversion in dome light
-        Intensity conversion in Redshift Environment
-        Update conversion of fresnel modes in RedshiftMaterial
-        
+v.2.9.1 - Conversion of light units
+v.2.9.2 - Update conversion of color+edge tint mode in RedshiftMaterial, VolumeScattering update
+v.2.9.2 - Update conversion of metalness in RedshiftArchitectural
+v.2.9.4 - Multiscatter layers conversion update in RedshiftMaterial
+v.2.9.5 - Intensity conversion in dome light
+v.2.9.6 - Intensity conversion in Redshift Environment
 
 */
 
@@ -1051,38 +1049,81 @@ global proc string convertRedshiftMaterial (string $rsMaterial, string $source) 
         copyPropertyColor($rpr, $rsMaterial, "refl_color", "reflectColor");
     }
     if ($refl_fr_mode == 2) {
-
-        $blend_value = `shadingNode -asUtility RPRBlendValue`;
-        connectAttr($blend_value + ".out", $rpr + ".reflectColor");
-
-        copyPropertyColor($blend_value, $rsMaterial, "diffuse_color", "inputA");
-        copyPropertyColor($blend_value, $rsMaterial, "refl_reflectivity", "inputB");
-        copyProperty($blend_value, $rsMaterial, "refl_metalness", "weight");
-
         $metalness = `getAttr ($rsMaterial + ".refl_metalness" )`;
         if ($metalness>0) {
             setAttr ($rpr + ".reflectMetalMaterial") 1;
             copyProperty($rpr, $rsMaterial, "refl_metalness", "reflectMetalness");
         }
 
+        float $diffuse_color[] = `getAttr ($rsMaterial + ".diffuse_color")`;
+
+        $blend_color[0] = $refl_reflectivity[0] * $diffuse_color[0];
+        $blend_color[1] = $refl_reflectivity[1] * $diffuse_color[1];
+        $blend_color[2] = $refl_reflectivity[2] * $diffuse_color[2];
+
+        setAttr ($rpr + ".reflectColor") $blend_color[0] $blend_color[1] $blend_color[2];
+
     }
     if ($refl_fr_mode == 1) {
 
-        $arithmetic = `shadingNode -asUtility RPRArithmetic`;
-        connectAttr($arithmetic + ".out", $rpr + ".reflectColor");
+        float $edge_tint[] = `getAttr ($rsMaterial + ".refl_edge_tint")`;
 
-        $blend_value = `shadingNode -asUtility RPRBlendValue`;
-        connectAttr($blend_value + ".out", $arithmetic + ".inputB");
+        // not metal
+        if (!($edge_tint[0] || $edge_tint[1] || $edge_tint[2])) {
+            float $max_value = `max $refl_reflectivity[0] $refl_reflectivity[1]`;
+            $max_value = `max $max_value $refl_reflectivity[2]`;
+            if ($max_value == 1) {
+                $max_value = 0.9999;
+            }
+            if ($max_value == 0) {
+                $max_value = 0.0001;
+            }
+            float $ior = -1 * ($max_value + 1 + 2 * `sqrt $max_value`) / ($max_value - 1);
+            if (catch(`setAttr ($rpr + ".reflectIOR") $ior`)) { 
+                setAttr ($rpr + ".reflectIOR") 10;
+            }
 
-        $fresnel = `shadingNode -asUtility RPRFresnel`;
-        connectAttr($fresnel + ".out", $blend_value + ".weight");
+            float $refl_color[] = `getAttr ($rsMaterial + ".refl_color")`;
 
-        setAttr ($fresnel + ".ior") 1.5;
-        copyPropertyColor($blend_value, $rsMaterial, "refl_reflectivity", "inputA");
-        copyPropertyColor($blend_value, $rsMaterial, "refl_edge_tint", "inputB");
+            if ($refl_color[0] != 0 && $refl_reflectivity[0] != 0) {
+                $blend_color[0] = ($refl_reflectivity[0] + $refl_color[0]) / 2;
+            } else {
+                $blend_color[0] = 0;
+            }
+            if ($refl_color[1] != 0 && $refl_reflectivity[1] != 0) {
+                $blend_color[1] = ($refl_reflectivity[1] + $refl_color[1]) / 2;
+            } else {
+                $blend_color[1] = 0;
+            }
+            if ($refl_color[2] != 0 && $refl_reflectivity[2] != 0) {
+                $blend_color[2] = ($refl_reflectivity[2] + $refl_color[2]) / 2;
+            } else {
+                $blend_color[2] = 0;
+            }
+            setAttr ($rpr + ".reflectColor") $blend_color[0] $blend_color[1] $blend_color[2];
 
-        copyPropertyColor($arithmetic, $rsMaterial, "refl_color", "inputA");
-
+        // metal 
+        } else {
+    
+            if ($edge_tint[0] != 0 && $refl_reflectivity[0] != 0) {
+                $blend_color[0] = ($refl_reflectivity[0] + $edge_tint[0]) / 2;
+            } else {
+                $blend_color[0] = 0;
+            }
+            if ($edge_tint[1] != 0 && $refl_reflectivity[1] != 0) {
+                $blend_color[1] = ($refl_reflectivity[1] + $edge_tint[1]) / 2;
+            } else {
+                $blend_color[1] = 0;
+            }
+            if ($edge_tint[2] != 0 && $refl_reflectivity[2] != 0) {
+                $blend_color[2] = ($refl_reflectivity[2] + $edge_tint[2]) / 2;
+            } else {
+                $blend_color[2] = 0;
+            }
+            setAttr ($rpr + ".reflectColor") $blend_color[0] $blend_color[1] $blend_color[2];
+            setAttr ($rpr + ".reflectMetalMaterial") 1;
+            setAttr ($rpr + ".reflectMetalness") 1;
+        }
     }
     if ($refl_fr_mode == 0) {
         copyProperty($rpr, $rsMaterial, "refl_ior30", "reflectIOR");
@@ -1746,6 +1787,7 @@ global proc convertRedshiftEnvironment(string $env) {
   
     // display IBL option
     float $exposure = `getAttr ($env + ".exposure0")`;
+    print("EXP:" + $exposure);
     setAttr ($iblShape + ".intensity") (1 * (`pow 2 $exposure`));
     copyProperty($iblShape, $env, "backPlateEnabled", "display");
 
