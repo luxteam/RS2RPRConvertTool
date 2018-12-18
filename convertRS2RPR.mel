@@ -1053,7 +1053,7 @@ global proc string convertRedshiftMaterial (string $rsMaterial, string $source) 
     if ($refl_fr_mode == 2) {
 
         $blend_value = `shadingNode -asUtility RPRBlendValue`;
-        connectAttr($blend_value + ".out", $rpr + ".reflectColor");
+        connectAttr($blend_value + ".out") ($rpr + ".reflectColor");
 
         copyPropertyColor($blend_value, $rsMaterial, "refl_reflectivity", "inputA");
         copyPropertyColor($blend_value, $rsMaterial, "diffuse_color", "inputB");
@@ -1071,13 +1071,13 @@ global proc string convertRedshiftMaterial (string $rsMaterial, string $source) 
         float $edge_tint[] = `getAttr ($rsMaterial + ".refl_edge_tint")`;
 
         $arithmetic = `shadingNode -asUtility RPRArithmetic`;
-        connectAttr($arithmetic + ".out", $rpr + ".reflectColor");
+        connectAttr -f ($arithmetic + ".out") ($rpr + ".reflectColor");
 
         $blend_value = `shadingNode -asUtility RPRBlendValue`;
-        connectAttr($blend_value + ".out", $arithmetic + ".inputB");
+        connectAttr -f ($blend_value + ".out") ($arithmetic + ".inputB");
 
         $fresnel = `shadingNode -asUtility RPRFresnel`;
-        connectAttr($fresnel + ".out", $blend_value + ".weight");
+        connectAttr -f ($fresnel + ".out") ($blend_value + ".weight");
 
         setAttr ($fresnel + ".ior") 1.5;
 
