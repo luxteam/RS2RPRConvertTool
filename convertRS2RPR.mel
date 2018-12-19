@@ -30,6 +30,9 @@ v.2.9 - Fresnel mode & ss units mode conversion updates in RedshiftMaterial
 v.2.10 - Intensity conversion in dome light
         Intensity conversion in Redshift Environment
         Update conversion of fresnel modes in RedshiftMaterial
+v.2.11 - Fix displacement conversion in Redshift Material
+        Update image unit type conversion in physical light
+
 
 */
 
@@ -1006,7 +1009,7 @@ global proc string convertRedshiftMaterial (string $rsMaterial, string $source) 
             sets -renderable true -noSurfaceShader true -empty -name $sg; 
             connectAttr -f ($rpr + ".outColor") ($sg + ".surfaceShader");
 
-            convertDisplacement($sg, $rpr);
+            convertDisplacement($materialSG[0], $rpr);
         }
     }
 
@@ -1923,23 +1926,63 @@ global proc convertRedshiftPhysicalLight(string $rs_light) {
     float $exposure = `getAttr ($rs_light + ".exposure")`;
     int $unitsType = `getAttr ($rs_light + ".unitsType")`;
     if ($unitsType == 0) {
-        setAttr ($lightShape + ".intensityUnits") 1;
-        print("TEEE1");
-        setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`));
+        float $scale_multiplier = `getAttr ($rs_transform[0] + ".scaleX")` * `getAttr ($rs_transform[0] + ".scaleY")`;
+        if ($lightType != 3) {
+            setAttr ($lightShape + ".intensityUnits") 0;
+            setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 1000 * $scale_multiplier);
+        } else {
+            setAttr ($lightShape + ".intensityUnits") 1;
+            setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 100 * $scale_multiplier);
+        }
     } else if ($unitsType == 1) {
-        setAttr ($lightShape + ".intensityUnits") 1;
-        setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 1000);
+        if ($lightType != 1) {
+            setAttr ($lightShape + ".intensityUnits") 1;
+            setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 1000);
+        } else {
+            setAttr ($lightShape + ".intensityUnits") 0;
+            setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 28571);
+        }
     } else if ($unitsType == 2) {
-        setAttr ($lightShape + ".intensityUnits") 1;
-        setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 10000);
+        if ($lightType != 1) {
+            setAttr ($lightShape + ".intensityUnits") 1;
+            setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 10000);
+        } else {
+            setAttr ($lightShape + ".intensityUnits") 0;
+            setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 285714);
+        }
     } else if ($unitsType == 3) {
-        setAttr ($lightShape + ".intensityUnits") 2;
-        setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 10);
-        copyProperty($lightShape, $rs_light, "lumensperwatt", "luminousEfficacy");
+        if ($lightType != 3) {
+            setAttr ($lightShape + ".intensityUnits") 2;
+            setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 10);
+            copyProperty($lightShape, $rs_light, "lumensperwatt", "luminousEfficacy");
+        } else {
+            setAttr ($lightShape + ".intensityUnits") 1;
+            setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 14.285);
+            copyProperty($lightShape, $rs_light, "lumensperwatt", "luminousEfficacy");
+        }
     } else if ($unitsType == 4) {
-        setAttr ($lightShape + ".intensityUnits") 3;
-        setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 10);
-        copyProperty($lightShape, $rs_light, "lumensperwatt", "luminousEfficacy");
+        if ($lightType != 1) {
+            setAttr ($lightShape + ".intensityUnits") 3;
+            setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 10);
+            copyProperty($lightShape, $rs_light, "lumensperwatt", "luminousEfficacy");
+        } else {
+            setAttr ($lightShape + ".intensityUnits") 0;
+            setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 10000);
+            copyProperty($lightShape, $rs_light, "lumensperwatt", "luminousEfficacy");
+        }
+    }
+
+    $areaShape = `getAttr ($rs_light + ".areaShape")`;
+    if ($areaShape == 0) { 
+        setAttr ($lightShape + ".areaLightShape") 3;
+    } else if ($areaShape == 1) {
+        setAttr ($lightShape + ".areaLightShape") 0;
+    } else if ($areaShape == 2) { 
+        setAttr ($lightShape + ".areaLightShape") 2;
+    } else if ($areaShape == 3) { 
+        setAttr ($lightShape + ".areaLightShape") 1;
+    } else if ($areaShape == 4) { 
+        setAttr ($lightShape + ".areaLightShape") 4;
     }
 
     $angle = `getAttr ($rs_light + ".spotConeFalloffAngle")`;

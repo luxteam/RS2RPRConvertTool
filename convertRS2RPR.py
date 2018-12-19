@@ -30,6 +30,8 @@ v.2.9 - Fresnel mode & ss units mode conversion updates in RedshiftMaterial
 v.2.10 - Intensity conversion in dome light
         Intensity conversion in Redshift Environment
         Update conversion of fresnel modes in RedshiftMaterial
+v.2.11 - Fix displacement conversion in Redshift Material
+        Update image unit type conversion in physical light
 
 '''
 
@@ -182,9 +184,9 @@ def convertDisplacement(rs_sg, rpr_name):
 		displacement = cmds.listConnections(rs_sg, type="RedshiftDisplacement")
 		if displacement:
 			displacement_file = cmds.listConnections(displacement[0], type="file") 
-			if fileDisplacement:
+			if displacement_file:
 				setProperty(rpr_name, "displacementEnable", 1)
-				cmds.connectAttr(fileDisplacement[0] + ".outColor", rpr_name + ".displacementMap", f=True)
+				cmds.connectAttr(displacement_file[0] + ".outColor", rpr_name + ".displacementMap", f=True)
 				copyProperty(rpr_name, displacement[0], "displacementMax", "scale")
 
 				meshs = cmds.listConnections(rs_sg, type="mesh")
@@ -242,7 +244,7 @@ def convertRedshiftNormalMap(rs, source):
 	# Logging to file (start)
 	start_log(rs, rpr)
 
-	copyProperty(rpr, rs, "scale", "strength")
+	copyProperty(rpr, rs, "strength", "scale")
 
 	# Logging to file (end)
 	end_log(rs)
@@ -799,7 +801,7 @@ def convertRedshiftMaterial(rsMaterial, source):
 
 		try:
 			blend_value = cmds.shadingNode("RPRBlendValue", asUtility=True)
-			cmds.connectAttr(blend_value + ".out", rprMaterial + ".reflectColor")
+			cmds.connectAttr(blend_value + ".out", rprMaterial + ".reflectColor", f=True)
 
 			# blend color from diffuse and reflectivity to reflect color
 			# no_rpr_analog
@@ -1348,46 +1350,79 @@ def convertRedshiftPhysicalLight(rs_light):
 
 	# Copy properties from rsLight
 	lightType = getProperty(rs_light, "lightType")
-	if lightType == 0:
-		setProperty(rprLightShape, "lightType", 0)
-	elif lightType == 1: 
-		setProperty(rprLightShape, "lightType", 2)
-	elif lightType == 2: 
-		setProperty(rprLightShape, "lightType", 1)
-	elif lightType == 3:  
-		setProperty(rprLightShape, "lightType", 3)
+	light_type_map = {
+		0:0, # area
+		1:2, # point
+		2:1, # spot
+		3:3  # directional
+	}
+	setProperty(rprLightShape, "lightType", light_type_map[lightType])
 	
-	colorMode = getProperty(rs_light, "colorMode")
-	if colorMode == 0: 
-		setProperty(rprLightShape, "colorMode", 0)
-	elif colorMode == 1: 
-		setProperty(rprLightShape, "colorMode", 1)
-	elif colorMode == 2:  
-		setProperty(rprLightShape, "colorMode", 1)
-	
+	color_mode_map = {
+		0:0, # color
+		1:1, # temperature
+		2:1  # temperature and color #no_rpr_analog
+	}
+	setProperty(rprLightShape, "colorMode", color_mode_map[getProperty(rs_light, "colorMode")])
+
 	intensity = getProperty(rs_light, "intensity")
 	exposure = getProperty(rs_light, "exposure")
 	unitsType = getProperty(rs_light, "unitsType")
-	if unitsType == 0: 
-		setProperty(rprLightShape, "intensityUnits", 1)
-		setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure)
-	elif unitsType == 1: 
-		setProperty(rprLightShape, "intensityUnits", 1)
-		setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 1000)
-	elif unitsType == 2: 
-		setProperty(rprLightShape, "intensityUnits", 1)
-		setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 10000)
-	elif unitsType == 3: 
-		setProperty(rprLightShape, "intensityUnits", 2)
-		setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 10)
-		copyProperty(rprLightShape, rs_light, "luminousEfficacy", "lumensperwatt")
-	elif unitsType == 4:
-		setProperty(rprLightShape, "intensityUnits", 3)
-		setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 10)
-		copyProperty(rprLightShape, rs_light, "luminousEfficacy", "lumensperwatt")	
+	if unitsType == 0: #image -> lumen
+		scale_multiplier = getProperty(rsTransform, "scaleX") * getProperty(rsTransform, "scaleY")
+		if lightType != 3: #not directional
+			setProperty(rprLightShape, "intensityUnits", 0)
+			setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 1000 * scale_multiplier)
+		else: #directional #image -> luminance
+			setProperty(rprLightShape, "intensityUnits", 1)
+			setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 100 * scale_multiplier)
+	elif unitsType == 1: #luminous -> luminance
+		if lightType != 1: #not point
+			setProperty(rprLightShape, "intensityUnits", 1)
+			setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 1000)
+		else: #point #luminous -> lumen
+			setProperty(rprLightShape, "intensityUnits", 0)
+			setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 28571)
+	elif unitsType == 2: #luminance -> luminance
+		if lightType != 1: #not point
+			setProperty(rprLightShape, "intensityUnits", 1)
+			setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 10000)
+		else: #point #luminous -> lumen
+			setProperty(rprLightShape, "intensityUnits", 0)
+			setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 285714)
+	elif unitsType == 3: #radiant power -> watts
+		if lightType != 3: #not directional
+			setProperty(rprLightShape, "intensityUnits", 2)
+			setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 10)
+			copyProperty(rprLightShape, rs_light, "luminousEfficacy", "lumensperwatt")
+		else: #directional #radiant power -> luminance
+			setProperty(rprLightShape, "intensityUnits", 1)
+			setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 14.285)
+			copyProperty(rprLightShape, rs_light, "luminousEfficacy", "lumensperwatt")
+	elif unitsType == 4: #radiance - > radiance
+		if lightType != 1: #not point
+			setProperty(rprLightShape, "intensityUnits", 3)
+			setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 10)
+			copyProperty(rprLightShape, rs_light, "luminousEfficacy", "lumensperwatt")	
+		else: #point #radiance - > lumen
+			setProperty(rprLightShape, "intensityUnits", 0)
+			setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 10000)
+			copyProperty(rprLightShape, rs_light, "luminousEfficacy", "lumensperwatt")	
 
-	setProperty(rprLightShape, "spotLightOuterConeFalloff", getProperty(rs_light, "spotConeFalloffAngle") * 3.5)
-	copyProperty(rprLightShape, rs_light, "spotLightInnerConeAngle", "spotConeAngle")
+	if lightType == 0: #area
+		area_shape_map = {
+			0:3,   # rectangle
+			1:0,   # disc
+			2:2,   # sphere
+			3:1,   # cylinder
+			4:4    # mesh 
+		}
+		setProperty(rprLightShape, "areaLightShape", area_shape_map[getProperty(rs_light, "areaShape")])
+
+	if lightType == 2: #spot
+ 		setProperty(rprLightShape, "spotLightOuterConeFalloff", getProperty(rs_light, "spotConeFalloffAngle") * 3.5)
+		copyProperty(rprLightShape, rs_light, "spotLightInnerConeAngle", "spotConeAngle")
+
 	copyProperty(rprLightShape, rs_light, "colorPicker", "color")
 	copyProperty(rprLightShape, rs_light, "temperature", "temperature")
 
