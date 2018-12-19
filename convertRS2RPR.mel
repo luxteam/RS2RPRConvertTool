@@ -1007,7 +1007,7 @@ global proc string convertRedshiftMaterial (string $rsMaterial, string $source) 
             sets -renderable true -noSurfaceShader true -empty -name $sg; 
             connectAttr -f ($rpr + ".outColor") ($sg + ".surfaceShader");
 
-            convertDisplacement($sg, $rpr);
+            convertDisplacement($materialSG[0], $rpr);
         }
     }
 

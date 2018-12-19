@@ -182,9 +182,9 @@ def convertDisplacement(rs_sg, rpr_name):
 		displacement = cmds.listConnections(rs_sg, type="RedshiftDisplacement")
 		if displacement:
 			displacement_file = cmds.listConnections(displacement[0], type="file") 
-			if fileDisplacement:
+			if displacement_file:
 				setProperty(rpr_name, "displacementEnable", 1)
-				cmds.connectAttr(fileDisplacement[0] + ".outColor", rpr_name + ".displacementMap", f=True)
+				cmds.connectAttr(displacement_file[0] + ".outColor", rpr_name + ".displacementMap", f=True)
 				copyProperty(rpr_name, displacement[0], "displacementMax", "scale")
 
 				meshs = cmds.listConnections(rs_sg, type="mesh")
@@ -242,7 +242,7 @@ def convertRedshiftNormalMap(rs, source):
 	# Logging to file (start)
 	start_log(rs, rpr)
 
-	copyProperty(rpr, rs, "scale", "strength")
+	copyProperty(rpr, rs, "strength", "scale")
 
 	# Logging to file (end)
 	end_log(rs)
@@ -799,7 +799,7 @@ def convertRedshiftMaterial(rsMaterial, source):
 
 		try:
 			blend_value = cmds.shadingNode("RPRBlendValue", asUtility=True)
-			cmds.connectAttr(blend_value + ".out", rprMaterial + ".reflectColor")
+			cmds.connectAttr(blend_value + ".out", rprMaterial + ".reflectColor", f=True)
 
 			# blend color from diffuse and reflectivity to reflect color
 			# no_rpr_analog
