@@ -33,6 +33,7 @@ v.2.10 - Intensity conversion in dome light
 v.2.11 - Fix displacement conversion in Redshift Material
         Update image unit type conversion in physical light
 
+
 */
 
 
@@ -1778,8 +1779,6 @@ global proc convertRedshiftEnvironment(string $env) {
     fclose $fileId;
   
     // display IBL option
-    float $exposure = `getAttr ($env + ".exposure0")`;
-    setAttr ($iblShape + ".intensity") (1 * (`pow 2 $exposure`));
     copyProperty($iblShape, $env, "backPlateEnabled", "display");
 
     // Copy properties from rsEnvironment
@@ -1844,9 +1843,6 @@ global proc convertRedshiftDomeLight(string $dome) {
     setAttr ($iblShape + ".display") $iblDisplayValue;
 
     // Copy properties from DomeLight
-    float $exposure = `getAttr ($dome + ".exposure0")`;
-    setAttr ($iblShape + ".intensity") (1 * (`pow 2 $exposure`));
-
     $map = `getAttr ($dome + ".tex0")`;
     setAttr -type "string" ($iblShape + ".filePath") $map;
     write_converted_property_log($iblShape, $dome, "filePath", "tex0"); 

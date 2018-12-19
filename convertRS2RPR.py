@@ -23,10 +23,10 @@ v.2.6 - RedshiftIncandescent conversion updates.
 v.2.7 - RedshiftMaterial & RedshiftSubSurface conversion updates
 v.2.8 - RedshiftIESLight & RedshiftPortalLight conversion
 v.2.9 - Fresnel mode & ss units mode conversion updates in RedshiftMaterial 
-		Conversion of light units
-		Update conversion of color+edge tint mode in RedshiftMaterial, VolumeScattering update
-		Update conversion of metalness in RedshiftArchitectural
-		Multiscatter layers conversion update in RedshiftMaterial
+        Conversion of light units
+        Update conversion of color+edge tint mode in RedshiftMaterial, VolumeScattering update
+        Update conversion of metalness in RedshiftArchitectural
+        Multiscatter layers conversion update in RedshiftMaterial
 v.2.10 - Intensity conversion in dome light
         Intensity conversion in Redshift Environment
         Update conversion of fresnel modes in RedshiftMaterial
@@ -1270,8 +1270,6 @@ def convertRedshiftEnvironment(env):
   
 	# display IBL option
 	copyProperty(iblShape, env, "display", "backPlateEnabled")
-	exposure = getProperty(env, "exposure0")
-	setProperty(iblShape, "intensity", 1 * 2 ** exposure)
 
 	# Copy properties from rsEnvironment
 	try:
@@ -1313,9 +1311,6 @@ def convertRedshiftDomeLight(dome_light):
 	start_log(dome_light, iblShape)
 
 	# display IBL option
-	exposure = getProperty(dome_light, "exposure0")
-	setProperty(iblShape, "intensity", 1 * 2 ** exposure)
-
 	copyProperty(iblShape, dome_light, "display", "background_enable")
 
 	try:
