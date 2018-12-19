@@ -30,7 +30,8 @@ v.2.9 - Fresnel mode & ss units mode conversion updates in RedshiftMaterial
 v.2.10 - Intensity conversion in dome light
         Intensity conversion in Redshift Environment
         Update conversion of fresnel modes in RedshiftMaterial
-        
+v.2.11 - Fix displacement conversion in Redshift Material
+        Update image unit type conversion in physical light
 
 */
 
