@@ -1905,6 +1905,16 @@ global proc convertRedshiftPhysicalLight(string $rs_light) {
 
     // Copy properties from rsLight
 
+    copyProperty($lightTransform[0], $rs_transform[0], "translateX", "translateX");
+    copyProperty($lightTransform[0], $rs_transform[0], "translateY", "translateY");
+    copyProperty($lightTransform[0], $rs_transform[0], "translateZ", "translateZ");
+    copyProperty($lightTransform[0], $rs_transform[0], "rotateX", "rotateX");
+    copyProperty($lightTransform[0], $rs_transform[0], "rotateY", "rotateY");
+    copyProperty($lightTransform[0], $rs_transform[0], "rotateZ", "rotateZ");
+    copyProperty($lightTransform[0], $rs_transform[0], "scaleX", "scaleX");
+    copyProperty($lightTransform[0], $rs_transform[0], "scaleY", "scaleY");
+    copyProperty($lightTransform[0], $rs_transform[0], "scaleZ", "scaleZ");
+
     $lightType = `getAttr ($rs_light + ".lightType")`;
     if ($lightType == 0) { // area
         setAttr ($lightShape + ".lightType") 0;
@@ -1925,17 +1935,51 @@ global proc convertRedshiftPhysicalLight(string $rs_light) {
         setAttr ($lightShape + ".colorMode") 1;
     }
 
+    $areaShape = `getAttr ($rs_light + ".areaShape")`;
+    if ($areaShape == 0) { 
+        setAttr ($lightShape + ".areaLightShape") 3;
+    } else if ($areaShape == 1) {
+        setAttr ($lightShape + ".areaLightShape") 0;
+    } else if ($areaShape == 2) { 
+        setAttr ($lightShape + ".areaLightShape") 2;
+    } else if ($areaShape == 3) { 
+        setAttr ($lightShape + ".areaLightShape") 1;
+    } else if ($areaShape == 4) { 
+        setAttr ($lightShape + ".areaLightShape") 4;
+    }
+
     float $intensity = `getAttr ($rs_light + ".intensity")`;
     float $exposure = `getAttr ($rs_light + ".exposure")`;
     int $unitsType = `getAttr ($rs_light + ".unitsType")`;
     if ($unitsType == 0) {
         float $scale_multiplier = `getAttr ($rs_transform[0] + ".scaleX")` * `getAttr ($rs_transform[0] + ".scaleY")`;
-        if ($lightType != 3) {
-            setAttr ($lightShape + ".intensityUnits") 0;
-            setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 1000 * $scale_multiplier);
-        } else {
+        if ($lightType == 0) {
+            if ($areaShape == 0) {
+                setAttr ($lightShape + ".intensityUnits") 0;
+                setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 2500 * $scale_multiplier);
+            } else if ($areaShape == 1) {
+                setAttr ($lightShape + ".intensityUnits") 0;
+                setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 2500 * $scale_multiplier);
+            } else if ($areaShape == 2) {
+                setAttr ($lightShape + ".intensityUnits") 0;
+                setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 1000 * $scale_multiplier);
+            } else if ($areaShape == 3) {
+                copyProperty($lightTransform[0], $rs_transform[0], "scaleX", "scaleZ");
+                copyProperty($lightTransform[0], $rs_transform[0], "scaleZ", "scaleX");
+                setAttr ($lightTransform[0] + ".rotateY") (`getAttr ($rs_transform[0] + ".rotateY")`);
+                float $scale_multiplier = `getAttr ($rs_transform[0] + ".scaleZ")` * `getAttr ($rs_transform[0] + ".scaleY")`;
+                setAttr ($lightShape + ".intensityUnits") 0;
+                setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 1000 * $scale_multiplier);
+            } else if ($areaShape == 4) {
+                setAttr ($lightShape + ".intensityUnits") 0;
+                setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 1000 * $scale_multiplier);
+            }
+        } else if ($lightType == 3) {
             setAttr ($lightShape + ".intensityUnits") 1;
             setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 100 * $scale_multiplier);
+        } else {
+            setAttr ($lightShape + ".intensityUnits") 0;
+            setAttr ($lightShape + ".lightIntensity") (($intensity * (`pow 2 $exposure`)) / (2500 * (1 + $intensity * (`pow 2 $exposure`) / 10000)));
         }
     } else if ($unitsType == 1) {
         if ($lightType != 1) {
@@ -1975,34 +2019,13 @@ global proc convertRedshiftPhysicalLight(string $rs_light) {
         }
     }
 
-    $areaShape = `getAttr ($rs_light + ".areaShape")`;
-    if ($areaShape == 0) { 
-        setAttr ($lightShape + ".areaLightShape") 3;
-    } else if ($areaShape == 1) {
-        setAttr ($lightShape + ".areaLightShape") 0;
-    } else if ($areaShape == 2) { 
-        setAttr ($lightShape + ".areaLightShape") 2;
-    } else if ($areaShape == 3) { 
-        setAttr ($lightShape + ".areaLightShape") 1;
-    } else if ($areaShape == 4) { 
-        setAttr ($lightShape + ".areaLightShape") 4;
-    }
 
     $angle = `getAttr ($rs_light + ".spotConeFalloffAngle")`;
-    setAttr ($lightShape + ".spotLightOuterConeFalloff") ($angle * 3.5);
-    copyProperty($lightShape, $rs_light, "spotConeAngle", "spotLightInnerConeAngle");
+    setAttr ($lightShape + ".spotLightInnerConeAngle") ($angle * 3.5);
+    copyProperty($lightShape, $rs_light, "spotConeAngle", "spotLightOuterConeFalloff");
 
     copyPropertyColor($lightShape, $rs_light, "color", "colorPicker");
 
-    copyProperty($lightTransform[0], $rs_transform[0], "translateX", "translateX");
-    copyProperty($lightTransform[0], $rs_transform[0], "translateY", "translateY");
-    copyProperty($lightTransform[0], $rs_transform[0], "translateZ", "translateZ");
-    copyProperty($lightTransform[0], $rs_transform[0], "rotateX", "rotateX");
-    copyProperty($lightTransform[0], $rs_transform[0], "rotateY", "rotateY");
-    copyProperty($lightTransform[0], $rs_transform[0], "rotateZ", "rotateZ");
-    copyProperty($lightTransform[0], $rs_transform[0], "scaleX", "scaleX");
-    copyProperty($lightTransform[0], $rs_transform[0], "scaleY", "scaleY");
-    copyProperty($lightTransform[0], $rs_transform[0], "scaleZ", "scaleZ");
 
     // Logging to file 
     $filePath =    `file -q -sceneName` + ".log"; 

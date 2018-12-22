@@ -510,7 +510,7 @@ def convertRedshiftArchitectural(rsMaterial, source):
 	setProperty(rprMaterial, "reflectMetalMaterial", getProperty(rsMaterial, "refl_is_metal"))
 
 	brdf_fresnel_type = getProperty(rsMaterial, "brdf_fresnel_type")
-	if brdf_fresnel_type:
+	if brdf_fresnel_type: # conductor
 		brdf_extinction_coeff = getProperty(rsMaterial, "brdf_extinction_coeff")
 		if brdf_extinction_coeff > 2:
 			setProperty(rprMaterial, "reflectMetalMaterial", 1)
@@ -1352,6 +1352,16 @@ def convertRedshiftPhysicalLight(rs_light):
 	start_log(rsLightShape, rprLightShape)
 
 	# Copy properties from rsLight
+	copyProperty(rprTransform, rsTransform, "translateX", "translateX")
+	copyProperty(rprTransform, rsTransform, "translateY", "translateY")
+	copyProperty(rprTransform, rsTransform, "translateZ", "translateZ")
+	copyProperty(rprTransform, rsTransform, "rotateX", "rotateX")
+	copyProperty(rprTransform, rsTransform, "rotateY", "rotateY")
+	copyProperty(rprTransform, rsTransform, "rotateZ", "rotateZ")
+	copyProperty(rprTransform, rsTransform, "scaleX", "scaleX")
+	copyProperty(rprTransform, rsTransform, "scaleY", "scaleY")
+	copyProperty(rprTransform, rsTransform, "scaleZ", "scaleZ")
+
 	lightType = getProperty(rs_light, "lightType")
 	light_type_map = {
 		0:0, # area
@@ -1368,17 +1378,48 @@ def convertRedshiftPhysicalLight(rs_light):
 	}
 	setProperty(rprLightShape, "colorMode", color_mode_map[getProperty(rs_light, "colorMode")])
 
+	areaShape = getProperty(rs_light, "areaShape")
+	if lightType == 0: #area
+		area_shape_map = {
+			0:3,   # rectangle
+			1:0,   # disc
+			2:2,   # sphere
+			3:1,   # cylinder
+			4:4    # mesh 
+		}
+		setProperty(rprLightShape, "areaLightShape", area_shape_map[areaShape])
+
 	intensity = getProperty(rs_light, "intensity")
 	exposure = getProperty(rs_light, "exposure")
 	unitsType = getProperty(rs_light, "unitsType")
 	if unitsType == 0: #image -> lumen
 		scale_multiplier = getProperty(rsTransform, "scaleX") * getProperty(rsTransform, "scaleY")
-		if lightType != 3: #not directional
-			setProperty(rprLightShape, "intensityUnits", 0)
-			setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 1000 * scale_multiplier)
-		else: #directional #image -> luminance
+		if lightType == 0: #area 
+			if areaShape == 0: # rectangle
+				setProperty(rprLightShape, "intensityUnits", 0)
+				setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 2500 * scale_multiplier)
+			elif areaShape == 1: # disk
+				setProperty(rprLightShape, "intensityUnits", 0)
+				setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 2500 * scale_multiplier)
+			elif areaShape == 2: # sphere
+				setProperty(rprLightShape, "intensityUnits", 0)
+				setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 1000 * scale_multiplier)
+			elif areaShape == 3: # cylinder
+				copyProperty(rprTransform, rsTransform, "scaleX", "scaleZ")
+				copyProperty(rprTransform, rsTransform, "scaleZ", "scaleX")
+				setProperty(rprTransform, "rotateY", getProperty(rsTransform, "rotateY") + 90)
+				scale_multiplier = getProperty(rsTransform, "scaleZ") * getProperty(rsTransform, "scaleY")
+				setProperty(rprLightShape, "intensityUnits", 0)
+				setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 1000 * scale_multiplier)
+			elif areaShape == 4: # mesh
+				setProperty(rprLightShape, "intensityUnits", 0)
+				setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 1000 * scale_multiplier)
+		elif lightType == 3: # directional #image -> luminance
 			setProperty(rprLightShape, "intensityUnits", 1)
 			setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 100 * scale_multiplier)
+		else: # spot and point
+			setProperty(rprLightShape, "intensityUnits", 0)
+			setProperty(rprLightShape, "lightIntensity", (intensity *  2 ** exposure) / (2500 * (1 + intensity *  2 ** exposure / 10000)))
 	elif unitsType == 1: #luminous -> luminance
 		if lightType != 1: #not point
 			setProperty(rprLightShape, "intensityUnits", 1)
@@ -1412,32 +1453,14 @@ def convertRedshiftPhysicalLight(rs_light):
 			setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 10000)
 			copyProperty(rprLightShape, rs_light, "luminousEfficacy", "lumensperwatt")	
 
-	if lightType == 0: #area
-		area_shape_map = {
-			0:3,   # rectangle
-			1:0,   # disc
-			2:2,   # sphere
-			3:1,   # cylinder
-			4:4    # mesh 
-		}
-		setProperty(rprLightShape, "areaLightShape", area_shape_map[getProperty(rs_light, "areaShape")])
-
 	if lightType == 2: #spot
- 		setProperty(rprLightShape, "spotLightOuterConeFalloff", getProperty(rs_light, "spotConeFalloffAngle") * 3.5)
-		copyProperty(rprLightShape, rs_light, "spotLightInnerConeAngle", "spotConeAngle")
+ 		setProperty(rprLightShape, "spotLightInnerConeAngle", getProperty(rs_light, "spotConeFalloffAngle") * 3.5)
+		copyProperty(rprLightShape, rs_light, "spotLightOuterConeFalloff", "spotConeAngle")
 
 	copyProperty(rprLightShape, rs_light, "colorPicker", "color")
 	copyProperty(rprLightShape, rs_light, "temperature", "temperature")
 
-	copyProperty(rprTransform, rsTransform, "translateX", "translateX")
-	copyProperty(rprTransform, rsTransform, "translateY", "translateY")
-	copyProperty(rprTransform, rsTransform, "translateZ", "translateZ")
-	copyProperty(rprTransform, rsTransform, "rotateX", "rotateX")
-	copyProperty(rprTransform, rsTransform, "rotateY", "rotateY")
-	copyProperty(rprTransform, rsTransform, "rotateZ", "rotateZ")
-	copyProperty(rprTransform, rsTransform, "scaleX", "scaleX")
-	copyProperty(rprTransform, rsTransform, "scaleY", "scaleY")
-	copyProperty(rprTransform, rsTransform, "scaleZ", "scaleZ")
+	
 
 	# Logging to file
 	end_log(rsLightShape)  
