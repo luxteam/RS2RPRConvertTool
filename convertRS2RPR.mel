@@ -30,7 +30,9 @@ v.2.9 - Fresnel mode & ss units mode conversion updates in RedshiftMaterial
 v.2.10 - Intensity conversion in dome light
         Intensity conversion in Redshift Environment
         Update conversion of fresnel modes in RedshiftMaterial
-        
+v.2.11 - Fix displacement conversion in Redshift Material
+        Update image unit type conversion in physical light
+
 
 */
 
@@ -1777,8 +1779,6 @@ global proc convertRedshiftEnvironment(string $env) {
     fclose $fileId;
   
     // display IBL option
-    float $exposure = `getAttr ($env + ".exposure0")`;
-    setAttr ($iblShape + ".intensity") (1 * (`pow 2 $exposure`));
     copyProperty($iblShape, $env, "backPlateEnabled", "display");
 
     // Copy properties from rsEnvironment
@@ -1843,9 +1843,6 @@ global proc convertRedshiftDomeLight(string $dome) {
     setAttr ($iblShape + ".display") $iblDisplayValue;
 
     // Copy properties from DomeLight
-    float $exposure = `getAttr ($dome + ".exposure0")`;
-    setAttr ($iblShape + ".intensity") (1 * (`pow 2 $exposure`));
-
     $map = `getAttr ($dome + ".tex0")`;
     setAttr -type "string" ($iblShape + ".filePath") $map;
     write_converted_property_log($iblShape, $dome, "filePath", "tex0"); 
@@ -2447,26 +2444,33 @@ global proc auto_launch(){
 }
 
 
-string $filePath = "";
-print("Convertion start!");
-float $startTime = 0;
-float $testTime = 0;
-$startTime = `timerX`;
-convertScene();
-$testTime = `timerX -startTime $startTime`;
-print("Convertion finished! Time: " + $testTime);
+global proc manual_launch(){
+    global int $manual;
+    
+    if ($manual == 0) {
+        string $filePath = "";
+        print("Convertion start!");
+        float $startTime = 0;
+        float $testTime = 0;
+        $startTime = `timerX`;
+        convertScene();
+        $testTime = `timerX -startTime $startTime`;
+        print("Convertion finished! Time: " + $testTime);
 
-$response = `confirmDialog -title "Convertation finished" 
-                          -message ("Total time: " + $testTime + "\nDelete all redshift instances?")
-                          -button "Yes" 
-                          -button "No"
-                          -defaultButton "Yes"
-                          -cancelButton "No"
-                          -dismissString "No"`;
-        
-if( $response == "Yes" ) {
-    cleanScene();
+        $response = `confirmDialog -title "Convertation finished" 
+                                  -message ("Total time: " + $testTime + "\nDelete all redshift instances?")
+                                  -button "Yes" 
+                                  -button "No"
+                                  -defaultButton "Yes"
+                                  -cancelButton "No"
+                                  -dismissString "No"`;
+                
+        if( $response == "Yes" ) {
+            cleanScene();
+        }
+
+        system("load " + `file -q -sceneName` + ".log" );
+    }
 }
 
-system("load " + `file -q -sceneName` + ".log" );
-
+manual_launch();
