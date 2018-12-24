@@ -1963,7 +1963,7 @@ global proc convertRedshiftPhysicalLight(string $rs_light) {
             } else if ($areaShape == 3) {
                 copyProperty($lightTransform[0], $rs_transform[0], "scaleX", "scaleZ");
                 copyProperty($lightTransform[0], $rs_transform[0], "scaleZ", "scaleX");
-                setAttr ($lightTransform[0] + ".rotateY") (`getAttr ($rs_transform[0] + ".rotateY")`);
+                setAttr ($lightTransform[0] + ".rotateY") (`getAttr ($rs_transform[0] + ".rotateY")` + 90);
                 float $scale_multiplier = `getAttr ($rs_transform[0] + ".scaleZ")` * `getAttr ($rs_transform[0] + ".scaleY")`;
                 setAttr ($lightShape + ".intensityUnits") 0;
                 setAttr ($lightShape + ".lightIntensity") ($intensity * (`pow 2 $exposure`) / 1000 * $scale_multiplier);
