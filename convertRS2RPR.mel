@@ -2120,7 +2120,7 @@ global proc convertRedshiftPhysicalLight(string $rs_light) {
     }
 
     copyPropertyColor($lightShape, $rs_light, "color", "colorPicker");
-    copyPropertyColor($lightShape, $rs_light, "temperature", "temperature");
+    copyProperty($lightShape, $rs_light, "temperature", "temperature");
 
 
     // Logging to file 
