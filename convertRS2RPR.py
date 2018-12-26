@@ -106,12 +106,15 @@ def copyProperty(rpr_name, rs_name, rpr_attr, rs_attr):
 		return
 
 	if listConnections:
-		source = cmds.connectionInfo(rs_field, sourceFromDestination=True).split('.')
-		source = convertRSMaterial(source[0], source[1])
+		obj, channel = cmds.connectionInfo(rs_field, sourceFromDestination=True).split('.')
+		source = convertRSMaterial(obj, channel)
 		try:
+			if cmds.objectType(obj) == "file":
+				setProperty(obj, "ignoreColorSpaceFileRules", 1)
 			cmds.connectAttr(source, rpr_field, force=True)
 			write_converted_property_log(rpr_name, source[0], rpr_attr, source[1])
-		except Exception:
+		except Exception as ex:
+			print(ex)
 			print("Connection {} to {} failed. Check the connectors. ".format(source, rpr_field))
 			write_own_property_log("Connection {} to {} failed. Check the connectors. ".format(source, rpr_field))
 	else:
@@ -393,20 +396,47 @@ def convertRedshiftBumpMap(rs, source):
 
 def convertRedshiftColorLayer(rs, source):
 
+	layer1_blend_mode = getProperty(rs, "layer1_blend_mode")
+
 	if cmds.objExists(rs + "_rpr"):
 		rpr = rs + "_rpr"
 	else:
-		rpr = cmds.shadingNode("RPRBlendMaterial", asShader=True)
-		cmds.rename(rpr, rs + "_rpr")
-		rpr = rs + "_rpr"
+		if layer1_blend_mode in (2, 3, 4, 15):
+			rpr = cmds.shadingNode("RPRArithmetic", asShader=True)
+			cmds.rename(rpr, rs + "_rpr")
+			rpr = rs + "_rpr"
+		else:
+			rpr = cmds.shadingNode("RPRBlendMaterial", asShader=True)
+			cmds.rename(rpr, rs + "_rpr")
+			rpr = rs + "_rpr"
 
 	# Logging to file
 	start_log(rs, rpr)
 
 	# Fields conversion
-	copyProperty(rpr, rs, "color0", "base_color")
-	copyProperty(rpr, rs, "color1", "layer1_color")
-	copyProperty(rpr, rs, "weight", "layer1_mask")
+	if cmds.objectType(rpr) == "RPRArithmetic":
+		conversion_map_operation = {
+			2: 0,
+			3: 1,
+			4: 2,
+			15: 3
+		}
+		setProperty(rpr, "operation", conversion_map_operation[layer1_blend_mode])
+		copyProperty(rpr, rs, "inputA", "base_color")
+		copyProperty(rpr, rs, "inputB", "layer1_color")
+
+		conversion_map = {
+		"outColor": "out",
+		"outColorR": "outR",
+		"outColorG": "outG",
+		"outColorB": "outB"
+		}
+		source = conversion_map[source]
+
+	else:
+		copyProperty(rpr, rs, "color0", "base_color")
+		copyProperty(rpr, rs, "color1", "layer1_color")
+		copyProperty(rpr, rs, "weight", "layer1_mask")
 
 	# Logging to file
 	end_log(rs)
