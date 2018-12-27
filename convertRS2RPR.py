@@ -1387,7 +1387,7 @@ def convertRedshiftDomeLight(dome_light):
 	
 	domeTransform = cmds.listRelatives(dome_light, p=True)[0]
 	rotateY = getProperty(domeTransform, "rotateY") - 90
-	setProperty(domeTransform, "rotateY", rotateY)
+	setProperty(iblTransform, "rotateY", rotateY)
 
 	# Logging to file
 	end_log(dome_light)  
