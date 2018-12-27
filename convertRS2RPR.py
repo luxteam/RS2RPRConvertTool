@@ -23,16 +23,18 @@ v.2.6 - RedshiftIncandescent conversion updates.
 v.2.7 - RedshiftMaterial & RedshiftSubSurface conversion updates
 v.2.8 - RedshiftIESLight & RedshiftPortalLight conversion
 v.2.9 - Fresnel mode & ss units mode conversion updates in RedshiftMaterial 
-        Conversion of light units
-        Update conversion of color+edge tint mode in RedshiftMaterial, VolumeScattering update
-        Update conversion of metalness in RedshiftArchitectural
-        Multiscatter layers conversion update in RedshiftMaterial
+		Conversion of light units
+		Update conversion of color+edge tint mode in RedshiftMaterial, VolumeScattering update
+		Update conversion of metalness in RedshiftArchitectural
+		Multiscatter layers conversion update in RedshiftMaterial
 v.2.10 - Intensity conversion in dome light
-        Intensity conversion in Redshift Environment
-        Update conversion of fresnel modes in RedshiftMaterial
+		Intensity conversion in Redshift Environment
+		Update conversion of fresnel modes in RedshiftMaterial
 v.2.11 - Fix displacement conversion in Redshift Material
-        Update image unit type conversion in physical light
+		Update image unit type conversion in physical light
 v.2.12 - Update units type of physical light conversion
+v.2.13 - Update opacity conversion, fix material & bump map conversion
+		Update rsColorLayer conversion. Fix bug with file color space
 
 '''
 
@@ -379,7 +381,7 @@ def convertRedshiftBumpMap(rs, source):
 	try:
 		source_input = cmds.connectionInfo(rs + ".input", sourceFromDestination=True)
 		if source_input:
-			cmds.connectAttr(rpr + ".color", source_input, force=True)
+			cmds.connectAttr(source_input, rpr + ".color", force=True)
 			write_converted_property_log(rpr, rs, "color", source_input)
 	except Exception as ex:
 		print(ex)
@@ -402,7 +404,7 @@ def convertRedshiftColorLayer(rs, source):
 		rpr = rs + "_rpr"
 	else:
 		if layer1_blend_mode in (2, 3, 4, 15):
-			rpr = cmds.shadingNode("RPRArithmetic", asShader=True)
+			rpr = cmds.shadingNode("RPRArithmetic", asUtility=True)
 			cmds.rename(rpr, rs + "_rpr")
 			rpr = rs + "_rpr"
 		else:
@@ -984,10 +986,36 @@ def convertRedshiftMaterial(rsMaterial, source):
 		copyProperty(rprMaterial, rsMaterial, "backscatteringWeight", "transl_weight")
 
 	# Opacity convert. Material conversion doesn't support, because all rsMaterial have outColor, but we need outAlpha.
-	if mapDoesNotExist(rprMaterial, rsMaterial, "transparencyLevel", "opacity_color"):
-		rs_opacity = getProperty(rsMaterial, "opacity_color")
-		max_value = 1 - max(rs_opacity)
-		setProperty(rprMaterial, "transparencyLevel", max_value)
+	rs_opacity = rsMaterial + ".opacity_color"
+	rpr_opacity = rprMaterial + ".transparencyLevel"
+	try:
+		listConnections = cmds.listConnections(rs_opacity)
+		if listConnections:
+			obj, channel = cmds.connectionInfo(rs_opacity, sourceFromDestination=True).split('.')
+			if cmds.objectType(obj) == "file":
+				listConnectionsRPR = cmds.listConnections(rpr_opacity, type="RPRArithmetic")
+				if not listConnectionsRPR:
+					arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				else:
+					arithmetic = listConnectionsRPR[0]
+				setProperty(arithmetic, "operation", 1)
+				setProperty(arithmetic, "inputA", (1, 1, 1))
+				cmds.connectAttr(obj+"."+channel, arithmetic+"."+"inputB", force=True)
+				source = arithmetic + ".outX"
+				cmds.connectAttr(source, rpr_opacity, force=True)
+			else:
+				source = obj + "." + channel
+				print("Connection {} to {} isn't available. This source isn't supported in this field.".format(source, rpr_opacity))
+				write_own_property_log("Connection {} to {} isn't available. This source isn't supported for this field.".format(source, rpr_opacity))
+		else:
+			rs_opacity = getProperty(rsMaterial, "opacity_color")
+			max_value = 1 - max(rs_opacity)
+			setProperty(rprMaterial, "transparencyLevel", max_value)
+		setProperty(rprMaterial, "transparencyEnable", 1)
+	except Exception as ex:
+		print(ex)
+		print("Conversion {} to {} is failed. Check this material. ".format(source, rpr_opacity))
+		write_own_property_log("Conversion {} to {} is failed. Check this material. ".format(source, rpr_opacity))
 
 	try:
 		bumpConnections = cmds.listConnections(rsMaterial + ".bump_input")
@@ -1618,9 +1646,9 @@ def convertRedshiftPortalLight(rs_light):
 
 	visible = getProperty(rs_light, "transparency")
 	if (visible[0] or visible[1] or visible[2]): 
-		setProperty(rprLightShape, "areaLightVisible", 1)
-	else:
 		setProperty(rprLightShape, "areaLightVisible", 0)
+	else:
+		setProperty(rprLightShape, "areaLightVisible", 1)
 	
 	copyProperty(rprTransform, rsTransform, "translateX", "translateX")
 	copyProperty(rprTransform, rsTransform, "translateY", "translateY")
@@ -1708,7 +1736,7 @@ def convertRedshiftVolumeScattering(rsVolumeScattering):
 
 		# assign material
 		cmds.select("Volume")
-		cmds.sets(sg, forceElement=True, empty=True)
+		cmds.sets(e=True, forceElement=sg)
 
 	# Logging to file 
 	start_log(rsVolumeScattering, rprMaterial) 
@@ -1893,12 +1921,10 @@ def convertScene():
 
 	for rs, rpr in materialsDict.items():
 		try:
-			rs_sg = cmds.listConnections(rs, type="shadingEngine")
-			rpr_sg = cmds.listConnections(rpr, type="shadingEngine")
-			meshs = cmds.sets(rs_sg, q=True)
-			cmds.sets(meshs, e=True, forceElement=rpr_sg[0])
+			cmds.hyperShade(objects=rs)
+			rpr_sg = cmds.listConnections(rpr, type="shadingEngine")[0]
+			cmds.sets(e=True, forceElement=rpr_sg)
 		except Exception as ex:
-			print(ex)
 			print("Error while converting {} material. \n".format(rs))
 	
 	cmds.setAttr("defaultRenderGlobals.currentRenderer", "FireRender", type="string")
