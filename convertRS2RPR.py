@@ -109,16 +109,10 @@ def copyProperty(rpr_name, rs_name, rpr_attr, rs_attr):
 
 	if listConnections:
 		obj, channel = cmds.connectionInfo(rs_field, sourceFromDestination=True).split('.')
-		source = convertRSMaterial(obj, channel)
-		try:
-			if cmds.objectType(obj) == "file":
-				setProperty(obj, "ignoreColorSpaceFileRules", 1)
-			cmds.connectAttr(source, rpr_field, force=True)
-			write_converted_property_log(rpr_name, source[0], rpr_attr, source[1])
-		except Exception as ex:
-			print(ex)
-			print("Connection {} to {} failed. Check the connectors. ".format(source, rpr_field))
-			write_own_property_log("Connection {} to {} failed. Check the connectors. ".format(source, rpr_field))
+		if cmds.objectType(obj) == "file":
+			setProperty(obj, "ignoreColorSpaceFileRules", 1)
+		source_name, source_attr = convertRSMaterial(obj, channel).split('.')
+		connectProperty(source_name, source_attr, rpr_name, rpr_attr)
 	else:
 		setProperty(rpr_name, rpr_attr, getProperty(rs_name, rs_attr))
 		write_converted_property_log(rpr_name, rs_name, rpr_attr, rs_attr)
@@ -182,6 +176,20 @@ def mapDoesNotExist(rpr_name, rs_name, rpr_attr, rs_attr):
 	return 1
 
 
+def connectProperty(source_name, source_attr, rpr_name, rpr_attr):
+
+	# full name of attribute
+	source = source_name + "." + source_attr
+	rpr_field = rpr_name + "." + rpr_attr
+
+	try:
+		cmds.connectAttr(source, rpr_field, force=True)
+		write_own_property_log("Created connection from {} to {}.".format(source, rpr_field))
+	except Exception as ex:
+		print(ex)
+		print("Connection {} to {} is failed.".format(source, rpr_field))
+		write_own_property_log("Connection {} to {} is failed.".format(source, rpr_field))
+
 
 # dispalcement convertion
 def convertDisplacement(rs_sg, rpr_name):
@@ -189,10 +197,10 @@ def convertDisplacement(rs_sg, rpr_name):
 	try:
 		displacement = cmds.listConnections(rs_sg, type="RedshiftDisplacement")
 		if displacement:
-			displacement_file = cmds.listConnections(displacement[0], type="file") 
+			displacement_file = cmds.listConnections(displacement[0], type="file")[0] 
 			if displacement_file:
 				setProperty(rpr_name, "displacementEnable", 1)
-				cmds.connectAttr(displacement_file[0] + ".outColor", rpr_name + ".displacementMap", f=True)
+				connectProperty(displacement_file, "outColor", rpr_name, "displacementMap")
 				copyProperty(rpr_name, displacement[0], "displacementMax", "scale")
 
 				meshs = cmds.listConnections(rs_sg, type="mesh")
@@ -220,25 +228,25 @@ def convertRedshiftNormalMap(rs, source):
 		file = cmds.shadingNode("file", asTexture=True, isColorManaged=True)
 		texture = cmds.shadingNode("place2dTexture", asUtility=True)
 
-		cmds.connectAttr(texture + ".coverage", file + ".coverage", f=True)
-		cmds.connectAttr(texture + ".translateFrame", file + ".translateFrame", f=True)
-		cmds.connectAttr(texture + ".rotateFrame", file + ".rotateFrame", f=True)
-		cmds.connectAttr(texture + ".mirrorU", file + ".mirrorU", f=True)
-		cmds.connectAttr(texture + ".mirrorV", file + ".mirrorV", f=True)
-		cmds.connectAttr(texture + ".stagger", file + ".stagger", f=True)
-		cmds.connectAttr(texture + ".wrapU", file + ".wrapU", f=True)
-		cmds.connectAttr(texture + ".wrapV", file + ".wrapV", f=True)
-		cmds.connectAttr(texture + ".repeatUV", file + ".repeatUV", f=True)
-		cmds.connectAttr(texture + ".offset", file + ".offset", f=True)
-		cmds.connectAttr(texture + ".rotateUV", file + ".rotateUV", f=True)
-		cmds.connectAttr(texture + ".noiseUV", file + ".noiseUV", f=True)
-		cmds.connectAttr(texture + ".vertexUvOne", file + ".vertexUvOne", f=True)
-		cmds.connectAttr(texture + ".vertexUvTwo", file + ".vertexUvTwo", f=True)
-		cmds.connectAttr(texture + ".vertexUvThree", file + ".vertexUvThree", f=True)
-		cmds.connectAttr(texture + ".vertexCameraOne", file + ".vertexCameraOne", f=True)
-		cmds.connectAttr(texture + ".outUV", file + ".uv")
-		cmds.connectAttr(texture + ".outUvFilterSize", file + ".uvFilterSize")
-		cmds.connectAttr(file + ".outColor", rpr + ".color", f=True)
+		connectProperty(texture, "coverage", file, "coverage")
+		connectProperty(texture, "translateFrame", file, "translateFrame")
+		connectProperty(texture, "rotateFrame", file, "rotateFrame")
+		connectProperty(texture, "mirrorU", file, "mirrorU")
+		connectProperty(texture, "mirrorV", file, "mirrorV")
+		connectProperty(texture, "stagger", file, "stagger")
+		connectProperty(texture, "wrapU", file, "wrapU")
+		connectProperty(texture, "wrapV", file, "wrapV")
+		connectProperty(texture, "repeatUV", file, "repeatUV")
+		connectProperty(texture, "offset", file, "offset")
+		connectProperty(texture, "rotateUV", file, "rotateUV")
+		connectProperty(texture, "noiseUV", file, "noiseUV")
+		connectProperty(texture, "vertexUvOne", file, "vertexUvOne")
+		connectProperty(texture, "vertexUvTwo", file, "vertexUvTwo")
+		connectProperty(texture, "vertexUvThree", file, "vertexUvThree")
+		connectProperty(texture, "vertexCameraOne", file, "vertexCameraOne")
+		connectProperty(texture, "outUV", file, "uv")
+		connectProperty(texture, "outUvFilterSize", file, "uvFilterSize")
+		connectProperty(file, "outColor", rpr, "color")
 
 		try:
 			cmds.setAttr(file + ".fileTextureName", getProperty(rs, "tex0"), type="string")
@@ -293,7 +301,7 @@ def convertRedshiftAmbientOcclusion(rs, source):
 		"outColorB": "outputB"
 	}
 
-	rpr += "." + source
+	rpr += "." + conversion_map[source]
 	return rpr
 
 
@@ -309,8 +317,7 @@ def convertRedshiftFresnel(rs, source):
 		cmds.rename(fresnel, rs + "_rpr")
 		fresnel = rs + "_rpr"
 
-		cmds.connectAttr(fresnel + ".out", rpr + ".weight", f=True)
-
+		connectProperty(fresnel, "out", rpr, "weight")
 		copyProperty(fresnel, rs, "ior", "ior")
 
 	# Logging to file
@@ -378,15 +385,9 @@ def convertRedshiftBumpMap(rs, source):
 	start_log(rs, rpr)
 
 	# Fields conversion
-	try:
-		source_input = cmds.connectionInfo(rs + ".input", sourceFromDestination=True)
-		if source_input:
-			cmds.connectAttr(source_input, rpr + ".color", force=True)
-			write_converted_property_log(rpr, rs, "color", source_input)
-	except Exception as ex:
-		print(ex)
-		print("Failed to convert bump map.")
-	
+	source_name, source_attr = cmds.connectionInfo(rs + ".input", sourceFromDestination=True).split('.')
+	if source_input:
+		connectProperty(source_name, source_attr, rpr, "color")
 	copyProperty(rpr, rs, "strength", "scale")
 
 	# Logging to file
@@ -457,24 +458,20 @@ def convertRedshiftBumpBlender(rs, source):
 		rpr = rs + "_rpr"
 
 		rpr_blend = cmds.shadingNode("RPRBlendMaterial", asShader=True)
-		cmds.connectAttr(rpr_blend + ".outColor", rpr + ".color", force=True)
+		connectProperty(rpr_blend, "outColor", rpr, "color")
 
-	try:
-		rsBump0 = cmds.listConnections(rs + ".baseInput", type="RedshiftBumpMap")
-		if rsBump0:
-			valueInput0 = cmds.listConnections(rsBump0[0] + ".input")
-			if valueInput0:
-				cmds.connectAttr(valueInput0[0] + ".outColor", rpr_blend + ".color0", force=True)
-		rsBump1 = cmds.listConnections(rs + ".bumpInput0", type="RedshiftBumpMap")
-		if rsBump1:
-			valueInput1 = cmds.listConnections(rsBump1[0] + ".input")
-			if valueInput1:
-				cmds.connectAttr(valueInput1[0] + ".outColor", rpr_blend + ".color1", force=True)
+	rsBump0 = cmds.listConnections(rs + ".baseInput", type="RedshiftBumpMap")
+	if rsBump0:
+		valueInput0 = cmds.listConnections(rsBump0[0] + ".input")[0]
+		if valueInput0:
+			connectProperty(valueInput0, ".outColor", rpr_blend, "color0")
 
-	except Exception as ex:
-		print(ex)
-		print("Failed to convert bump blender inputs")
-	
+	rsBump1 = cmds.listConnections(rs + ".bumpInput0", type="RedshiftBumpMap")
+	if rsBump1:
+		valueInput1 = cmds.listConnections(rsBump1[0] + ".input")[0]
+		if valueInput1:
+			connectProperty(valueInput1, "outColor", rpr_blend, "color1")
+
 	conversion_map = {
 		"outColor": "out",
 		"outColorR": "outR",
@@ -484,6 +481,37 @@ def convertRedshiftBumpBlender(rs, source):
 
 	rpr += "." + conversion_map[source]
 	return rpr	
+
+
+# Create default uber material for unsupported material
+def convertUnsupportedMaterial(rsMaterial, source):
+
+	materialSG = cmds.listConnections(rsMaterial, type="shadingEngine")
+	# Check material exist
+	if cmds.objExists(rsMaterial + "_rpr"):
+		rprMaterial = rsMaterial + "_rpr"
+	else:
+		# Creating new Uber material
+		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
+		cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
+		rprMaterial = rsMaterial + "_rpr"
+
+		# Check shading engine in rsMaterial
+		if materialSG:
+			sg = rprMaterial + "SG"
+			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
+			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
+
+	# set green color
+	setProperty(rprMaterial, "diffuseColor", (0, 1, 0))
+
+	# Logging to file
+	start_log(rsMaterial, rprMaterial)
+	end_log(rsMaterial)
+
+	if not materialSG:
+		rprMaterial += "." + source
+	return rprMaterial
 
 
 ######################## 
@@ -506,7 +534,7 @@ def convertRedshiftArchitectural(rsMaterial, source):
 		if materialSG:
 			sg = rprMaterial + "SG"
 			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-			cmds.connectAttr(rprMaterial + ".outColor", sg + ".surfaceShader", f=True)
+			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
 		
 	# Enable properties, which are default in RedShift
 	defaultEnable(rprMaterial, rsMaterial, "diffuse", "diffuse_weight")
@@ -613,7 +641,7 @@ def convertRedshiftCarPaint(rsMaterial, source):
 		if materialSG:
 			sg = rprMaterial + "SG"
 			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-			cmds.connectAttr(rprMaterial + ".outColor", sg + ".surfaceShader", f=True)
+			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
 
 	# Enable properties, which are default in RedShift
 	defaultEnable(rprMaterial, rsMaterial, "diffuse", "diffuse_weight")
@@ -632,42 +660,6 @@ def convertRedshiftCarPaint(rsMaterial, source):
 	copyProperty(rprMaterial, rsMaterial, "coatWeight", "clearcoat_weight")
 
 	# Logging in file
-	end_log(rsMaterial)
-
-	if not materialSG:
-		rprMaterial += "." + source
-	return rprMaterial
-
-
-#######################
-## RedshiftHair 
-####################### 
-
-def convertRedshiftHair(rsMaterial, source):
-
-	materialSG = cmds.listConnections(rsMaterial, type="shadingEngine")
-	# Check material exist
-	if cmds.objExists(rsMaterial + "_rpr"):
-		rprMaterial = rsMaterial + "_rpr"
-	else:
-		# Creating new Uber material
-		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
-		cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
-		rprMaterial = rsMaterial + "_rpr"
-
-		# Check shading engine in rsMaterial
-		if materialSG:
-			sg = rprMaterial + "SG"
-			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-			cmds.connectAttr(rprMaterial + ".outColor", sg + ".surfaceShader", f=True)
-
-	# Logging to file
-	start_log(rsMaterial, rprMaterial)
-
-	# no_rpr_analog for rsHair
-	# will be created empty uber material
-
-	# Logging to file
 	end_log(rsMaterial)
 
 	if not materialSG:
@@ -695,7 +687,7 @@ def convertRedshiftIncandescent(rsMaterial, source):
 		if materialSG:
 			sg = rprMaterial + "SG"
 			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-			cmds.connectAttr(rprMaterial + ".outColor", sg + ".surfaceShader", f=True)
+			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
 
 	# Enable properties, which are default in RedShift
 	setProperty(rprMaterial, "diffuse", 0)
@@ -797,7 +789,7 @@ def convertRedshiftMaterial(rsMaterial, source):
 		if materialSG:
 			sg = rprMaterial + "SG"
 			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-			cmds.connectAttr(rprMaterial + ".outColor", sg + ".surfaceShader", f=True)
+			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
 
 			convertDisplacement(materialSG, rprMaterial)
 
@@ -834,7 +826,7 @@ def convertRedshiftMaterial(rsMaterial, source):
 
 		try:
 			blend_value = cmds.shadingNode("RPRBlendValue", asUtility=True)
-			cmds.connectAttr(blend_value + ".out", rprMaterial + ".reflectColor", f=True)
+			connectProperty(blend_value, "out", rprMaterial, "reflectColor")
 
 			# blend color from diffuse and reflectivity to reflect color
 			# no_rpr_analog
@@ -857,13 +849,13 @@ def convertRedshiftMaterial(rsMaterial, source):
 		edge_tint = getProperty(rsMaterial, "refl_edge_tint")
 
 		arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		cmds.connectAttr(arithmetic + ".out", rprMaterial + ".reflectColor", f=True)
+		connectProperty(arithmetic, "out", rprMaterial, "reflectColor")
 
 		blend_value = cmds.shadingNode("RPRBlendValue", asUtility=True)
-		cmds.connectAttr(blend_value + ".out", arithmetic + ".inputB", f=True)
+		connectProperty(blend_value, "out", arithmetic, "inputB")
 
 		fresnel = cmds.shadingNode("RPRFresnel", asUtility=True)
-		cmds.connectAttr(fresnel + ".out", blend_value + ".weight", f=True)
+		connectProperty(fresnel, "out", blend_value, "weight")
 
 		copyProperty(arithmetic, rsMaterial, "inputA", "refl_color")
 		setProperty(arithmetic, "operation", 2)
@@ -1000,9 +992,8 @@ def convertRedshiftMaterial(rsMaterial, source):
 					arithmetic = listConnectionsRPR[0]
 				setProperty(arithmetic, "operation", 1)
 				setProperty(arithmetic, "inputA", (1, 1, 1))
-				cmds.connectAttr(obj+"."+channel, arithmetic+"."+"inputB", force=True)
-				source = arithmetic + ".outX"
-				cmds.connectAttr(source, rpr_opacity, force=True)
+				connectProperty(obj, channel, arithmetic, "inputB")
+				connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
 			else:
 				source = obj + "." + channel
 				print("Connection {} to {} isn't available. This source isn't supported in this field.".format(source, rpr_opacity))
@@ -1054,7 +1045,7 @@ def convertRedshiftMaterialBlender(rsMaterial, source):
 		if materialSG:
 			sg = rprMaterial + "SG"
 			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-			cmds.connectAttr(rprMaterial + ".outColor", sg + ".surfaceShader", f=True)
+			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
 
 	# Logging to file
 	start_log(rsMaterial, rprMaterial)  
@@ -1064,15 +1055,9 @@ def convertRedshiftMaterialBlender(rsMaterial, source):
 	copyProperty(rprMaterial, rsMaterial, "color1", "layerColor1")
 
 	# weight conversion
-	try:
-		listConnections = cmds.listConnections(rsMaterial + ".blendColor1")
-		if listConnections:
-			cmds.connectAttr(listConnections[0] + ".outAlpha", rprMaterial + ".weight", force=True)
-			write_own_property_log("Created connection from {} to {}. ".format(listConnections[0] + ".outAlpha", rprMaterial + ".weight"))
-	except Exception as ex:
-		print(ex)
-		print("Failed to convert weight map.")
-		write_own_property_log("Failed to convert weight map.")
+	weight = cmds.listConnections(rsMaterial + ".blendColor1")[0]
+	if weight:
+		connectProperty(listConnections, "outAlpha", rprMaterial, "weight")
 
 	# Logging to file
 	end_log(rsMaterial) 
@@ -1102,7 +1087,7 @@ def convertRedshiftMatteShadowCatcher(rsMaterial, source):
 		if materialSG:
 			sg = rprMaterial + "SG"
 			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-			cmds.connectAttr(rprMaterial + ".outColor", sg + ".surfaceShader", f=True)
+			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
 
 	# Logging to file
 	start_log(rsMaterial, rprMaterial)  
@@ -1119,116 +1104,6 @@ def convertRedshiftMatteShadowCatcher(rsMaterial, source):
 	if not materialSG:
 		rprMaterial += "." + source
 	return rprMaterial
-
-
-######################## 
-## RedshiftShaderSwitch 
-######################## 
-
-def convertRedshiftShaderSwitch(rsMaterial, source): 
-
-	materialSG = cmds.listConnections(rsMaterial, type="shadingEngine")
-	# Check material exist
-	if cmds.objExists(rsMaterial + "_rpr"):
-		rprMaterial = rsMaterial + "_rpr"
-	else:
-		# Creating new Uber material
-		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
-		cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
-		rprMaterial = rsMaterial + "_rpr"
-
-		# Check shading engine in rsMaterial
-		if materialSG:
-			sg = rprMaterial + "SG"
-			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-			cmds.connectAttr(rprMaterial + ".outColor", sg + ".surfaceShader", f=True)
-
-	# Logging to file
-	start_log(rsMaterial, rprMaterial)  
-
-	# no_rpr_analog
-	# empty uber will be created
-
-	# Logging to file
-	end_log(rsMaterial) 
-
-	if not materialSG:
-		rprMaterial += "." + source
-	return rprMaterial
-
-
-######################
-## RedshiftSkin 
-##################### 
-
-def convertRedshiftSkin(rsMaterial, source): 
-
-	materialSG = cmds.listConnections(rsMaterial, type="shadingEngine")
-	# Check material exist
-	if cmds.objExists(rsMaterial + "_rpr"):
-		rprMaterial = rsMaterial + "_rpr"
-	else:
-		# Creating new Uber material
-		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
-		cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
-		rprMaterial = rsMaterial + "_rpr"
-
-		# Check shading engine in rsMaterial
-		if materialSG:
-			sg = rprMaterial + "SG"
-			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-			cmds.connectAttr(rprMaterial + ".outColor", sg + ".surfaceShader", f=True)
-
-	# Logging to file
-	start_log(rsMaterial, rprMaterial)  
-
-	# no_rpr_analog
-	# empty uber will be created
-
-	# Logging to file
-	end_log(rsMaterial) 
-
-	if not materialSG:
-		rprMaterial += "." + source
-	return rprMaterial
-
-
-
-####################### 
-## RedshiftSprite 
-####################### 
-
-def convertRedshiftSprite(rsMaterial, source): 
-
-	materialSG = cmds.listConnections(rsMaterial, type="shadingEngine")
-	# Check material exist
-	if cmds.objExists(rsMaterial + "_rpr"):
-		rprMaterial = rsMaterial + "_rpr"
-	else:
-		# Creating new Uber material
-		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
-		cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
-		rprMaterial = rsMaterial + "_rpr"
-
-		# Check shading engine in rsMaterial
-		if materialSG:
-			sg = rprMaterial + "SG"
-			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-			cmds.connectAttr(rprMaterial + ".outColor", sg + ".surfaceShader", f=True)
-
-	# Logging to file
-	start_log(rsMaterial, rprMaterial)  
-
-	# no_rpr_analog
-	# empty uber will be created
-
-	# Logging to file
-	end_log(rsMaterial) 
-
-	if not materialSG:
-		rprMaterial += "." + source
-	return rprMaterial
-
 
 
 ############################
@@ -1251,7 +1126,7 @@ def convertRedshiftSubSurfaceScatter(rsMaterial, source):
 		if materialSG:
 			sg = rprMaterial + "SG"
 			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-			cmds.connectAttr(rprMaterial + ".outColor", sg + ".surfaceShader", f=True)
+			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
 		 
 	
 	# Enable properties, which are default in RedShift
@@ -1726,7 +1601,7 @@ def convertRedshiftVolumeScattering(rsVolumeScattering):
 		
 		sg = rprMaterial + "SG"
 		cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-		cmds.connectAttr(rprMaterial + ".outColor", sg + ".volumeShader", f=True)
+		weight(rprMaterial, "outColor", sg, "volumeShader")
 
 		# create sphere
 		cmds.polySphere(n="Volume")
@@ -1761,14 +1636,14 @@ def convertRSMaterial(rsMaterial, source):
 	conversion_func = {
 		"RedshiftArchitectural": convertRedshiftArchitectural,
 		"RedshiftCarPaint": convertRedshiftCarPaint,
-		"RedshiftHair": convertRedshiftHair,
+		"RedshiftHair": convertUnsupportedMaterial,
 		"RedshiftIncandescent": convertRedshiftIncandescent,
 		"RedshiftMaterial": convertRedshiftMaterial,
 		"RedshiftMaterialBlender": convertRedshiftMaterialBlender,
 		"RedshiftMatteShadowCatcher": convertRedshiftMatteShadowCatcher,
-		"RedshiftShaderSwitch": convertRedshiftShaderSwitch,
-		"RedshiftSkin": convertRedshiftSkin,
-		"RedshiftSprite": convertRedshiftSprite,
+		"RedshiftShaderSwitch": convertUnsupportedMaterial,
+		"RedshiftSkin": convertUnsupportedMaterial,
+		"RedshiftSprite": convertUnsupportedMaterial,
 		"RedshiftSubSurfaceScatter": convertRedshiftSubSurfaceScatter,
 		##utilities
 		"RedshiftBumpMap": convertRedshiftBumpMap,
@@ -1925,6 +1800,7 @@ def convertScene():
 			rpr_sg = cmds.listConnections(rpr, type="shadingEngine")[0]
 			cmds.sets(e=True, forceElement=rpr_sg)
 		except Exception as ex:
+			print(ex)
 			print("Error while converting {} material. \n".format(rs))
 	
 	cmds.setAttr("defaultRenderGlobals.currentRenderer", "FireRender", type="string")
