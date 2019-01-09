@@ -35,6 +35,7 @@ v.2.11 - Fix displacement conversion in Redshift Material
 v.2.12 - Update units type of physical light conversion
 v.2.13 - Update opacity conversion, fix material & bump map conversion
 		Update rsColorLayer conversion. Fix bug with file color space
+		Global settings conversion
 
 '''
 
@@ -1014,6 +1015,8 @@ def convertRedshiftMaterial(rsMaterial, source):
 			setProperty(rprMaterial, "normalMapEnable", 1)
 			copyProperty(rprMaterial, rsMaterial, "normalMap", "bump_input")
 	except Exception as ex:
+		print(ex)
+		print("Failed to convert bump.")
 		write_own_property_log("Failed to convert bump.")
 
 	# Logging to file
@@ -1483,7 +1486,6 @@ def convertRedshiftPhysicalLight(rs_light):
 	copyProperty(rprLightShape, rs_light, "colorPicker", "color")
 	copyProperty(rprLightShape, rs_light, "temperature", "temperature")
 
-
 	# Logging to file
 	end_log(rsLightShape)  
 
@@ -1803,9 +1805,20 @@ def convertScene():
 			print(ex)
 			print("Error while converting {} material. \n".format(rs))
 	
+	# globals conversion
 	cmds.setAttr("defaultRenderGlobals.currentRenderer", "FireRender", type="string")
 	setProperty("defaultRenderGlobals", "imageFormat", 8)
-	setProperty("RadeonProRenderGlobals", "completionCriteriaIterations", getProperty("redshiftOptions", "progressiveRenderingNumPasses"))
+	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "completionCriteriaIterations", "progressiveRenderingNumPasses")
+	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "maxDepthGlossy", "reflectionMaxTraceDepth")
+	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "maxDepthRefraction", "refractionMaxTraceDepth")
+	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "maxRayDepth", "combinedMaxTraceDepth")
+	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "filter", "unifiedFilterType")
+	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "motionBlur", "motionBlurEnable")
+	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "motionBlurScale", "motionBlurFrameDuration")
+
+	matteShadowCatcher = cmds.ls(materials=True, type="RedshiftMatteShadowCatcher")
+	if matteShadowCatcher:
+		setProperty("RadeonProRenderGlobals", "aovShadowCatcher", 1)
 
 
 def auto_launch():
