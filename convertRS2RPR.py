@@ -387,7 +387,7 @@ def convertRedshiftBumpMap(rs, source):
 
 	# Fields conversion
 	source_name, source_attr = cmds.connectionInfo(rs + ".input", sourceFromDestination=True).split('.')
-	if source_input:
+	if source_name:
 		connectProperty(source_name, source_attr, rpr, "color")
 	copyProperty(rpr, rs, "strength", "scale")
 
@@ -1818,6 +1818,8 @@ def convertScene():
 
 	matteShadowCatcher = cmds.ls(materials=True, type="RedshiftMatteShadowCatcher")
 	if matteShadowCatcher:
+		setProperty("RadeonProRenderGlobals", "aovOpacity", 1)
+		setProperty("RadeonProRenderGlobals", "aovBackground", 1)
 		setProperty("RadeonProRenderGlobals", "aovShadowCatcher", 1)
 
 
