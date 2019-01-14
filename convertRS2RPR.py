@@ -53,16 +53,19 @@ def write_converted_property_log(rpr_name, rs_name, rpr_attr, rs_attr):
 		file_path = cmds.file(q=True, sceneName=True) + ".log"
 		with open(file_path, 'a') as f:
 			f.write(u"    property {}.{} is converted to {}.{}   \r\n".format(rpr_name, rpr_attr, rs_attr, rs_name).encode('utf-8'))
-	except Exception:
-		print("Error writing logs. Scene is not saved")
+	except Exception as ex:
+		print(ex)
+		print("Error writing conversion logs. Scene is not saved")
 
 def write_own_property_log(text):
 
 	try:
 		file_path = cmds.file(q=True, sceneName=True) + ".log"
 		with open(file_path, 'a') as f:
-			f.write(u"    {}   \r\n".format(text).encode('utf-8'))
-	except Exception:
+			f.write("    {}   \r\n".format(text))
+	except Exception as ex:
+		print(text)
+		print(ex)
 		print("Error writing logs. Scene is not saved")
 
 def start_log(rs, rpr):
@@ -70,28 +73,29 @@ def start_log(rs, rpr):
 	try:
 		text  = u"Found node: \r\n    name: {} \r\n".format(rs).encode('utf-8')
 		text += "type: {} \r\n".format(cmds.objectType(rs))
-		text += u"Converting to: \r\n    name: {rpr} \r\n".format(rpr).encode('utf-8')
+		text += u"Converting to: \r\n    name: {} \r\n".format(rpr).encode('utf-8')
 		text += "type: {} \r\n".format(cmds.objectType(rpr))
 		text += "Conversion details: \r\n"
 
 		file_path = cmds.file(q=True, sceneName=True) + ".log"
 		with open(file_path, 'a') as f:
 			f.write(text)
-	except Exception:
-		print("Error writing logs. Scene is not saved")
+	except Exception as ex:
+		print(ex)
+		print("Error writing start log. Scene is not saved")
 
 
 def end_log(rs):
 
 	try:
-		text  = u"Conversion of {rs} is finished.\n\n".format(rs).encode('utf-8')
-		text += "\r\n"
+		text  = u"Conversion of {} is finished.\n\n \r\n".format(rs).encode('utf-8')
 
 		file_path = cmds.file(q=True, sceneName=True) + ".log"
 		with open(file_path, 'a') as f:
 			f.write(text)
-	except Exception:
-		print("Error writing logs. Scene is not saved")
+	except Exception as ex:
+		print(ex)
+		print("Error writing end logs. Scene is not saved")
 
 # additional fucntions
 
