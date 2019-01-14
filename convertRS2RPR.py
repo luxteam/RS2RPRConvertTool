@@ -52,7 +52,7 @@ def write_converted_property_log(rpr_name, rs_name, rpr_attr, rs_attr):
 	try:
 		file_path = cmds.file(q=True, sceneName=True) + ".log"
 		with open(file_path, 'a') as f:
-			f.write("    property " + rs_name + "." + rs_attr + " converted to " + rpr_name + "." + rpr_attr + "   \r\n")
+			f.write(u"    property {}.{} is converted to {}.{}   \r\n".format(rpr_name, rpr_attr, rs_attr, rs_name).encode('utf-8'))
 	except Exception:
 		print("Error writing logs. Scene is not saved")
 
@@ -61,17 +61,17 @@ def write_own_property_log(text):
 	try:
 		file_path = cmds.file(q=True, sceneName=True) + ".log"
 		with open(file_path, 'a') as f:
-			f.write("    " + text + "   \r\n")
+			f.write(u"    {}   \r\n".format(text).encode('utf-8'))
 	except Exception:
 		print("Error writing logs. Scene is not saved")
 
 def start_log(rs, rpr):
 
 	try:
-		text  = "Found node: \r\n    name: " + rs + "\r\n"
-		text += "type: " + cmds.objectType(rs) + "\r\n"
-		text += "Converting to: \r\n    name: " + rpr + "\r\n"
-		text += "type: " + cmds.objectType(rpr) + "\r\n"
+		text  = u"Found node: \r\n    name: {} \r\n".format(rs).encode('utf-8')
+		text += "type: {} \r\n".format(cmds.objectType(rs))
+		text += u"Converting to: \r\n    name: {rpr} \r\n".format(rpr).encode('utf-8')
+		text += "type: {} \r\n".format(cmds.objectType(rpr))
 		text += "Conversion details: \r\n"
 
 		file_path = cmds.file(q=True, sceneName=True) + ".log"
@@ -84,7 +84,7 @@ def start_log(rs, rpr):
 def end_log(rs):
 
 	try:
-		text  = "Conversion of " + rs + " is finished.\n\n"
+		text  = u"Conversion of {rs} is finished.\n\n".format(rs).encode('utf-8')
 		text += "\r\n"
 
 		file_path = cmds.file(q=True, sceneName=True) + ".log"
@@ -104,8 +104,8 @@ def copyProperty(rpr_name, rs_name, rpr_attr, rs_attr):
 	try:
 		listConnections = cmds.listConnections(rs_field)
 	except Exception:
-		print("There is no {} field in this node. Check the field and try again. ".format(rs_field))
-		write_own_property_log("There is no {} field in this node. Check the field and try again. ".format(rs_field))
+		print(u"There is no {} field in this node. Check the field and try again. ".format(rs_field).encode('utf-8'))
+		write_own_property_log(u"There is no {} field in this node. Check the field and try again. ".format(rs_field).encode('utf-8'))
 		return
 
 	if listConnections:
@@ -127,17 +127,17 @@ def setProperty(rpr_name, rpr_attr, value):
 	if type(value) == tuple:
 		try:
 			cmds.setAttr(rpr_field, value[0], value[1], value[2])
-			write_own_property_log("Set value {} to {}.".format(value, rpr_field))
+			write_own_property_log(u"Set value {} to {}.".format(value, rpr_field).encode('utf-8'))
 		except Exception:
-			print("Set value {} to {} is failed. Check the values and their boundaries. ".format(value, rpr_field))
-			write_own_property_log("Set value {} to {} is failed. Check the values and their boundaries. ".format(value, rpr_field))
+			print(u"Set value {} to {} is failed. Check the values and their boundaries. ".format(value, rpr_field).encode('utf-8'))
+			write_own_property_log(u"Set value {} to {} is failed. Check the values and their boundaries. ".format(value, rpr_field).encode('utf-8'))
 	else:
 		try:
 			cmds.setAttr(rpr_field, value)
-			write_own_property_log("Set value {} to {}.".format(value, rpr_field))
+			write_own_property_log(u"Set value {} to {}.".format(value, rpr_field).encode('utf-8'))
 		except Exception:
-			print("Set value {} to {} is failed. Check the values and their boundaries. ".format(value, rpr_field))
-			write_own_property_log("Set value {} to {} is failed. Check the values and their boundaries. ".format(value, rpr_field))
+			print(u"Set value {} to {} is failed. Check the values and their boundaries. ".format(value, rpr_field).encode('utf-8'))
+			write_own_property_log(u"Set value {} to {} is failed. Check the values and their boundaries. ".format(value, rpr_field).encode('utf-8'))
 
 
 def getProperty(material, attr):
@@ -150,7 +150,7 @@ def getProperty(material, attr):
 			value = value[0]
 	except Exception as ex:
 		print(ex)
-		write_own_property_log("There is no {} field in this node. Check the field and try again. ".format(field))
+		write_own_property_log(u"There is no {} field in this node. Check the field and try again. ".format(field).encode('utf-8'))
 		return
 
 	return value
@@ -165,13 +165,13 @@ def mapDoesNotExist(rpr_name, rs_name, rpr_attr, rs_attr):
 		listConnections = cmds.listConnections(rs_field)
 	except Exception as ex:
 		print(ex)
-		write_own_property_log("There is no {} field in this node. Check the field and try again. ".format(rs_field))
+		write_own_property_log(u"There is no {} field in this node. Check the field and try again. ".format(rs_field).encode('utf-8'))
 		return
 
 	if listConnections:
 		source = cmds.connectionInfo(rs_field, sourceFromDestination=True)
-		print("Connection {} to {} isn't available. Map isn't supported in this field.".format(source, rpr_field))
-		write_own_property_log("Connection {} to {} isn't available. Map isn't supported for this field.".format(source, rpr_field))
+		print(u"Connection {} to {} isn't available. Map isn't supported in this field.".format(source, rpr_field).encode('utf-8'))
+		write_own_property_log(u"Connection {} to {} isn't available. Map isn't supported for this field.".format(source, rpr_field).encode('utf-8'))
 		return 0
 
 	return 1
@@ -185,11 +185,11 @@ def connectProperty(source_name, source_attr, rpr_name, rpr_attr):
 
 	try:
 		cmds.connectAttr(source, rpr_field, force=True)
-		write_own_property_log("Created connection from {} to {}.".format(source, rpr_field))
+		write_own_property_log(u"Created connection from {} to {}.".format(source, rpr_field).encode('utf-8'))
 	except Exception as ex:
 		print(ex)
-		print("Connection {} to {} is failed.".format(source, rpr_field))
-		write_own_property_log("Connection {} to {} is failed.".format(source, rpr_field))
+		print(u"Connection {} to {} is failed.".format(source, rpr_field).encode('utf-8'))
+		write_own_property_log(u"Connection {} to {} is failed.".format(source, rpr_field).encode('utf-8'))
 
 
 # dispalcement convertion
@@ -214,7 +214,7 @@ def convertDisplacement(rs_sg, rpr_name):
 							copyProperty(rpr_name, shapes[0], "displacementSubdiv", "rsMaxTessellationSubdivs")
 	except Exception as ex:
 		print(ex)
-		print("Failed to convert displacement for {} material".format(rpr_name))
+		print(u"Failed to convert displacement for {} material".format(rpr_name).encode('utf-8'))
 
 
 # re-convert is not fully supported for this node (only scale field)
@@ -997,8 +997,8 @@ def convertRedshiftMaterial(rsMaterial, source):
 				connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
 			else:
 				source = obj + "." + channel
-				print("Connection {} to {} isn't available. This source isn't supported in this field.".format(source, rpr_opacity))
-				write_own_property_log("Connection {} to {} isn't available. This source isn't supported for this field.".format(source, rpr_opacity))
+				print(u"Connection {} to {} isn't available. This source isn't supported in this field.".format(source, rpr_opacity).encode('utf-8'))
+				write_own_property_log(u"Connection {} to {} isn't available. This source isn't supported for this field.".format(source, rpr_opacity).encode('utf-8'))
 		else:
 			rs_opacity = getProperty(rsMaterial, "opacity_color")
 			max_value = 1 - max(rs_opacity)
@@ -1006,8 +1006,8 @@ def convertRedshiftMaterial(rsMaterial, source):
 		setProperty(rprMaterial, "transparencyEnable", 1)
 	except Exception as ex:
 		print(ex)
-		print("Conversion {} to {} is failed. Check this material. ".format(source, rpr_opacity))
-		write_own_property_log("Conversion {} to {} is failed. Check this material. ".format(source, rpr_opacity))
+		print(u"Conversion {} to {} is failed. Check this material. ".format(source, rpr_opacity).encode('utf-8'))
+		write_own_property_log(u"Conversion {} to {} is failed. Check this material. ".format(source, rpr_opacity).encode('utf-8'))
 
 	try:
 		bumpConnections = cmds.listConnections(rsMaterial + ".bump_input")
