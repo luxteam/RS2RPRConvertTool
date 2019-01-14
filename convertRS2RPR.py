@@ -1064,7 +1064,7 @@ def convertRedshiftMaterialBlender(rsMaterial, source):
 	# weight conversion
 	weight = cmds.listConnections(rsMaterial + ".blendColor1")[0]
 	if weight:
-		connectProperty(listConnections, "outAlpha", rprMaterial, "weight")
+		connectProperty(weight, "outAlpha", rprMaterial, "weight")
 
 	# Logging to file
 	end_log(rsMaterial) 
