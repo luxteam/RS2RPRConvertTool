@@ -1603,7 +1603,7 @@ def convertRedshiftVolumeScattering(rsVolumeScattering):
 		
 		sg = rprMaterial + "SG"
 		cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-		weight(rprMaterial, "outColor", sg, "volumeShader")
+		connectProperty(rprMaterial, "outColor", sg, "volumeShader")
 
 		# create sphere
 		cmds.polySphere(n="Volume")
@@ -1818,9 +1818,12 @@ def convertScene():
 
 	matteShadowCatcher = cmds.ls(materials=True, type="RedshiftMatteShadowCatcher")
 	if matteShadowCatcher:
-		setProperty("RadeonProRenderGlobals", "aovOpacity", 1)
-		setProperty("RadeonProRenderGlobals", "aovBackground", 1)
-		setProperty("RadeonProRenderGlobals", "aovShadowCatcher", 1)
+		try:
+			setProperty("RadeonProRenderGlobals", "aovOpacity", 1)
+			setProperty("RadeonProRenderGlobals", "aovBackground", 1)
+			setProperty("RadeonProRenderGlobals", "aovShadowCatcher", 1)
+		except Exception as ex:
+			print(ex)
 
 
 def auto_launch():
