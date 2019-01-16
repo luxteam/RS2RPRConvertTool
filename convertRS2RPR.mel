@@ -516,7 +516,9 @@ global proc copyPropertyColor(string $rpr, string $rs, string $attrRS, string $a
             write_converted_property_log($rpr, $rs, $attrRPR, $source);  
         }  
     } else {
+        print($tempRS);
         $varRS_RGB = `getAttr $tempRS`;
+        print($varRS_RGB);
         if (catch(`setAttr $tempRPR $varRS_RGB[0] $varRS_RGB[1] $varRS_RGB[2]`)) { 
             write_own_property_log("Copy failed. Check the values and their boundaries. ");
         } else { 
@@ -1051,7 +1053,7 @@ global proc string convertRedshiftMaterial (string $rsMaterial, string $source) 
     $refl_fr_mode = `getAttr ($rsMaterial + ".refl_fresnel_mode" )`;
     if ($refl_fr_mode == 3) {
         copyProperty($rpr, $rsMaterial, "refl_ior", "reflectIOR");
-        copyPropertyColor($rpr, $rsMaterial, "refl_color", "reflectColor");
+        //copyPropertyColor($rpr, $rsMaterial, "refl_color", "reflectColor");
     }
     if ($refl_fr_mode == 2) {
 
@@ -1124,8 +1126,8 @@ global proc string convertRedshiftMaterial (string $rsMaterial, string $source) 
         copyPropertyColor($rpr, $rsMaterial, "refl_color", "reflectColor");
     }
     
-    
     copyPropertyColor($rpr, $rsMaterial, "refr_color", "refractColor");
+    print("ok");
     copyProperty($rpr, $rsMaterial, "refr_weight", "refractWeight");
     copyProperty($rpr, $rsMaterial, "refr_roughness", "refractRoughness");
     copyProperty($rpr, $rsMaterial, "refr_ior", "refractIor");
