@@ -692,8 +692,18 @@ def convertRedshiftArchitectural(rsMaterial, source):
 		if brdf_extinction_coeff > 2:
 			setProperty(rprMaterial, "reflectMetalMaterial", 1)
 			setProperty(rprMaterial, "reflectMetalness", 1)
-			copyProperty(rprMaterial, rsMaterial, "reflectColor", "diffuse")
-		
+
+			if mapDoesNotExist(rprMaterial, rsMaterial, "diffuseWeight", "diffuse_weight"):
+				setProperty(rprMaterial, "diffuseWeight", 0)
+			if mapDoesNotExist(rprMaterial, rsMaterial, "reflectWeight", "reflectivity"):
+				setProperty(rprMaterial, "reflectWeight", 1)
+
+			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			copyProperty(arithmetic, rsMaterial, "inputA", "diffuse")
+			copyProperty(arithmetic, rsMaterial, "inputB", "refl_color")
+			setProperty(arithmetic, "operation", 20)
+			connectProperty(arithmetic, "out", rprMaterial, "reflectColor")
+
 	# sec reflection
 	copyProperty(rprMaterial, rsMaterial, "coatWeight", "refl_base") 
 	copyProperty(rprMaterial, rsMaterial, "coatColor", "refl_base_color")
