@@ -114,8 +114,6 @@ def copyProperty(rpr_name, rs_name, rpr_attr, rs_attr):
 
 	if listConnections:
 		obj, channel = cmds.connectionInfo(rs_field, sourceFromDestination=True).split('.')
-		if cmds.objectType(obj) == "file":
-			setProperty(obj, "ignoreColorSpaceFileRules", 1)
 		source_name, source_attr = convertRSMaterial(obj, channel).split('.')
 		connectProperty(source_name, source_attr, rpr_name, rpr_attr)
 	else:
@@ -188,6 +186,8 @@ def connectProperty(source_name, source_attr, rpr_name, rpr_attr):
 	rpr_field = rpr_name + "." + rpr_attr
 
 	try:
+		if cmds.objectType(source_name) == "file":
+			setProperty(source_name, "ignoreColorSpaceFileRules", 1)
 		cmds.connectAttr(source, rpr_field, force=True)
 		write_own_property_log(u"Created connection from {} to {}.".format(source, rpr_field).encode('utf-8'))
 	except Exception as ex:
@@ -244,7 +244,7 @@ def convertbump2d(rs, source):
 	try:
 		bumpConnections = cmds.listConnections(rs + ".bumpValue", type="file")[0]
 		if bumpConnections:
-			cmds.connectAttr(bumpConnections + ".outColor", rpr + ".color", force=True)
+			connectProperty(bumpConnections, "outColor", rpr, "color")
 	except Exception:
 		print("Connection {} to {} failed. Check the connectors. ".format(bumpConnections + ".outColor", rpr + ".color"))
 		write_own_property_log("Connection {} to {} failed. Check the connectors. ".format(bumpConnections + ".outColor", rpr + ".color"))
@@ -332,7 +332,19 @@ def convertRedshiftNormalMap(rs, source):
 		connectProperty(texture, "vertexCameraOne", file, "vertexCameraOne")
 		connectProperty(texture, "outUV", file, "uv")
 		connectProperty(texture, "outUvFilterSize", file, "uvFilterSize")
-		connectProperty(file, "outColor", rpr, "color")
+		copyProperty(texture, rs, "repeatU", "repeats0")
+		copyProperty(texture, rs, "repeatV", "repeats1")
+
+		if getProperty(rs, "flipY"):
+			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic, "inputA", (1, 1, 1))
+			setProperty(arithmetic, "operation", 1)
+			connectProperty(file, "outColorG", arithmetic, "inputBY")
+			connectProperty(arithmetic, "outY", rpr, "colorG")
+			connectProperty(file, "outColorR", rpr, "colorR")
+			connectProperty(file, "outColorB", rpr, "colorB")
+		else:
+			connectProperty(file, "outColor", rpr, "color")
 
 		try:
 			cmds.setAttr(file + ".fileTextureName", getProperty(rs, "tex0"), type="string")
@@ -340,6 +352,9 @@ def convertRedshiftNormalMap(rs, source):
 		except Exception as ex:
 			print(ex)
 			print("Error convertion file texture map")
+
+		
+
 
 	# Logging to file (start)
 	start_log(rs, rpr)
@@ -463,7 +478,16 @@ def convertRedshiftBumpMap(rs, source):
 	if cmds.objExists(rs + "_rpr"):
 		rpr = rs + "_rpr"
 	else:
-		rpr = cmds.shadingNode("RPRBump", asUtility=True)
+
+		inputType = getProperty(rs, "inputType")
+		if inputType == 0:
+			rpr = cmds.shadingNode("RPRBump", asUtility=True)
+		elif inputType == 1:
+			rpr = cmds.shadingNode("RPRNormal", asUtility=True)
+		elif inputType == 2:
+			rpr = cmds.shadingNode("RPRNormal", asUtility=True)
+			write_own_property_log("Bump map conversion below is incorrect. You need conversion into Tangent Space.")
+
 		cmds.rename(rpr, rs + "_rpr")
 		rpr = rs + "_rpr"
 
@@ -471,10 +495,14 @@ def convertRedshiftBumpMap(rs, source):
 	start_log(rs, rpr)
 
 	# Fields conversion
-	source_name, source_attr = cmds.connectionInfo(rs + ".input", sourceFromDestination=True).split('.')
-	if source_name:
-		connectProperty(source_name, source_attr, rpr, "color")
 	copyProperty(rpr, rs, "strength", "scale")
+
+	try:
+		source_name, source_attr = cmds.connectionInfo(rs + ".input", sourceFromDestination=True).split('.')
+		if source_name:
+			connectProperty(source_name, source_attr, rpr, "color")
+	except Exception as ex:
+		print(ex)
 
 	# Logging to file
 	end_log(rs)
