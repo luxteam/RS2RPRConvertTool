@@ -1918,7 +1918,9 @@ def convertScene():
 	# globals conversion
 	cmds.setAttr("defaultRenderGlobals.currentRenderer", "FireRender", type="string")
 	setProperty("defaultRenderGlobals", "imageFormat", 8)
-	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "completionCriteriaIterations", "progressiveRenderingNumPasses")
+	setProperty("RadeonProRenderGlobals", "completionCriteriaIterations", getProperty("redshiftOptions", "progressiveRenderingNumPasses") * 1.5)
+	setProperty("RadeonProRenderGlobals", "giClampIrradiance", 1)
+	setProperty("RadeonProRenderGlobals", "giClampIrradianceValue", 32)
 	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "maxDepthGlossy", "reflectionMaxTraceDepth")
 	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "maxDepthRefraction", "refractionMaxTraceDepth")
 	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "maxRayDepth", "combinedMaxTraceDepth")
