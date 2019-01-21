@@ -54,7 +54,6 @@ def write_converted_property_log(rpr_name, rs_name, rpr_attr, rs_attr):
 		with open(file_path, 'a') as f:
 			f.write(u"    property {}.{} is converted to {}.{}   \r\n".format(rpr_name, rpr_attr, rs_attr, rs_name).encode('utf-8'))
 	except Exception as ex:
-		print(ex)
 		print("Error writing conversion logs. Scene is not saved")
 
 def write_own_property_log(text):
@@ -64,8 +63,6 @@ def write_own_property_log(text):
 		with open(file_path, 'a') as f:
 			f.write("    {}   \r\n".format(text))
 	except Exception as ex:
-		print(text)
-		print(ex)
 		print("Error writing logs. Scene is not saved")
 
 def start_log(rs, rpr):
@@ -81,7 +78,6 @@ def start_log(rs, rpr):
 		with open(file_path, 'a') as f:
 			f.write(text)
 	except Exception as ex:
-		print(ex)
 		print("Error writing start log. Scene is not saved")
 
 
@@ -94,7 +90,6 @@ def end_log(rs):
 		with open(file_path, 'a') as f:
 			f.write(text)
 	except Exception as ex:
-		print(ex)
 		print("Error writing end logs. Scene is not saved")
 
 # additional fucntions
@@ -1109,26 +1104,22 @@ def convertRedshiftMaterial(rsMaterial, source):
 		listConnections = cmds.listConnections(rs_opacity)
 		if listConnections:
 			obj, channel = cmds.connectionInfo(rs_opacity, sourceFromDestination=True).split('.')
-			if cmds.objectType(obj) == "file":
-				listConnectionsRPR = cmds.listConnections(rpr_opacity, type="RPRArithmetic")
-				if not listConnectionsRPR:
-					arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-				else:
-					arithmetic = listConnectionsRPR[0]
-				setProperty(arithmetic, "operation", 1)
-				setProperty(arithmetic, "inputA", (1, 1, 1))
-				connectProperty(obj, channel, arithmetic, "inputB")
-				connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
+			listConnectionsRPR = cmds.listConnections(rpr_opacity, type="RPRArithmetic")
+			if not listConnectionsRPR:
+				arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
 			else:
-				source = obj + "." + channel
-				print(u"Connection {} to {} isn't available. This source isn't supported in this field.".format(source, rpr_opacity).encode('utf-8'))
-				write_own_property_log(u"Connection {} to {} isn't available. This source isn't supported for this field.".format(source, rpr_opacity).encode('utf-8'))
+				arithmetic = listConnectionsRPR[0]
+			setProperty(arithmetic, "operation", 1)
+			setProperty(arithmetic, "inputA", (1, 1, 1))
+			connectProperty(obj, channel, arithmetic, "inputB")
+			connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
 		else:
 			rs_opacity = getProperty(rsMaterial, "opacity_color")
 			max_value = 1 - max(rs_opacity)
 			setProperty(rprMaterial, "transparencyLevel", max_value)
 		setProperty(rprMaterial, "transparencyEnable", 1)
 	except Exception as ex:
+		setProperty(rprMaterial, "transparencyEnable", 0)
 		print(ex)
 		print(u"Conversion {} to {} is failed. Check this material. ".format(source, rpr_opacity).encode('utf-8'))
 		write_own_property_log(u"Conversion {} to {} is failed. Check this material. ".format(source, rpr_opacity).encode('utf-8'))
