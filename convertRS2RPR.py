@@ -1921,7 +1921,7 @@ def convertRSMaterial(rsMaterial, source):
 		"RedshiftMatteShadowCatcher": convertRedshiftMatteShadowCatcher,
 		"RedshiftShaderSwitch": convertUnsupportedMaterial,
 		"RedshiftSkin": convertUnsupportedMaterial,
-		"RedshiftSprite": convertRedshiftSprite,
+		"RedshiftSprite": convertUnsupportedMaterial,
 		"RedshiftSubSurfaceScatter": convertRedshiftSubSurfaceScatter,
 		##utilities
 		"bump2d": convertbump2d,
