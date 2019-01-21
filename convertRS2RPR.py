@@ -297,10 +297,10 @@ def convertmultiplyDivide(rs, source):
 # re-convert is not fully supported for this node (only scale field)
 def convertRedshiftNoise(rs, source):
 
+	noiseType = getProperty(rs, "noise_type")
 	if cmds.objExists(rs + "_rpr"):
 		rpr = rs + "_rpr"
 	else:
-		noiseType = getProperty(rs, "noise_type")
 		if noiseType == 0:
 			rpr = cmds.shadingNode("simplexNoise", asUtility=True)
 		elif noiseType == 1:
@@ -330,15 +330,28 @@ def convertRedshiftNoise(rs, source):
 		connectProperty(texture, "vertexCameraOne", rpr, "vertexCameraOne")
 		connectProperty(texture, "outUV", rpr, "uv")
 		connectProperty(texture, "outUvFilterSize", rpr, "uvFilterSize")
-		copyProperty(texture, rs, "repeatU", "coord_scale0")
-		copyProperty(texture, rs, "repeatV", "coord_scale1")
+		setProperty(texture, "repeatU", getProperty(rs, "coord_scale_global") * getProperty(rs, "coord_scale0"))
+		setProperty(texture, "repeatV", getProperty(rs, "coord_scale_global") * getProperty(rs, "coord_scale1"))
 		copyProperty(texture, rs, "offsetU", "coord_offset0")
 		copyProperty(texture, rs, "offsetV", "coord_offset1")
 
 	# Logging to file (start)
 	start_log(rs, rpr)
 
+	setProperty(rpr, "amplitude", getProperty(rs, "noise_gain") / 2)
 
+	if noiseType == 0:
+		setProperty(rs, "noiseType", 1)
+		copyProperty(rpr, rs, "noise_complexity", "octaves")
+		copyProperty(rpr, rs, "noise_scale", "frequency")
+		copyProperty(rpr, rs, "distort", "distortionU")
+		copyProperty(rpr, rs, "distort", "distortionV")
+		copyProperty(rpr, rs, "distort_scale", "distortionRatio")
+	elif noiseType == 1:
+		copyProperty(rpr, rs, "noise_scale", "frequencyRatio")
+	elif noiseType == 2:
+		copyProperty(rpr, rs, "noise_complexity", "depthMax")
+		copyProperty(rpr, rs, "noise_scale", "frequencyRatio")
 
 	# Logging to file (end)
 	end_log(rs)
