@@ -225,12 +225,10 @@ def convertbump2d(rs, source):
 		bump_type = getProperty(rs, "bumpInterp")
 		if not bump_type:
 			rpr = cmds.shadingNode("RPRBump", asUtility=True)
-			cmds.rename(rpr, rs + "_rpr")
-			rpr = rs + "_rpr"
+			rpr = cmds.rename(rpr, rs + "_rpr")
 		else:
 			rpr = cmds.shadingNode("RPRNormal", asUtility=True)
-			cmds.rename(rpr, rs + "_rpr")
-			rpr = rs + "_rpr"
+			rpr = cmds.rename(rpr, rs + "_rpr")
 
 	# Logging to file
 	start_log(rs, rpr)
@@ -266,8 +264,7 @@ def convertmultiplyDivide(rs, source):
 		rpr = rs + "_rpr"
 	else:
 		rpr = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		cmds.rename(rpr, rs + "_rpr")
-		rpr = rs + "_rpr"
+		rpr = cmds.rename(rpr, rs + "_rpr")
 
 	# Logging to file
 	start_log(rs, rpr)
@@ -298,14 +295,66 @@ def convertmultiplyDivide(rs, source):
 
 
 # re-convert is not fully supported for this node (only scale field)
+def convertRedshiftNoise(rs, source):
+
+	if cmds.objExists(rs + "_rpr"):
+		rpr = rs + "_rpr"
+	else:
+		noiseType = getProperty(rs, "noise_type")
+		if noiseType == 0:
+			rpr = cmds.shadingNode("simplexNoise", asUtility=True)
+		elif noiseType == 1:
+			rpr = cmds.shadingNode("fractal", asUtility=True)
+		elif noiseType == 2:
+			rpr = cmds.shadingNode("noise", asUtility=True)
+
+		rpr = cmds.rename(rpr, rs + "_rpr")
+
+		texture = cmds.shadingNode("place2dTexture", asUtility=True)
+
+		connectProperty(texture, "coverage", rpr, "coverage")
+		connectProperty(texture, "translateFrame", rpr, "translateFrame")
+		connectProperty(texture, "rotateFrame", rpr, "rotateFrame")
+		connectProperty(texture, "mirrorU", rpr, "mirrorU")
+		connectProperty(texture, "mirrorV", rpr, "mirrorV")
+		connectProperty(texture, "stagger", rpr, "stagger")
+		connectProperty(texture, "wrapU", rpr, "wrapU")
+		connectProperty(texture, "wrapV", rpr, "wrapV")
+		connectProperty(texture, "repeatUV", rpr, "repeatUV")
+		connectProperty(texture, "offset", rpr, "offset")
+		connectProperty(texture, "rotateUV", rpr, "rotateUV")
+		connectProperty(texture, "noiseUV", rpr, "noiseUV")
+		connectProperty(texture, "vertexUvOne", rpr, "vertexUvOne")
+		connectProperty(texture, "vertexUvTwo", rpr, "vertexUvTwo")
+		connectProperty(texture, "vertexUvThree", rpr, "vertexUvThree")
+		connectProperty(texture, "vertexCameraOne", rpr, "vertexCameraOne")
+		connectProperty(texture, "outUV", rpr, "uv")
+		connectProperty(texture, "outUvFilterSize", rpr, "uvFilterSize")
+		copyProperty(texture, rs, "repeatU", "coord_scale0")
+		copyProperty(texture, rs, "repeatV", "coord_scale1")
+		copyProperty(texture, rs, "offsetU", "coord_offset0")
+		copyProperty(texture, rs, "offsetV", "coord_offset1")
+
+	# Logging to file (start)
+	start_log(rs, rpr)
+
+
+
+	# Logging to file (end)
+	end_log(rs)
+
+	rpr += "." + source
+	return rpr
+
+
+# re-convert is not fully supported for this node (only scale field)
 def convertRedshiftNormalMap(rs, source):
 
 	if cmds.objExists(rs + "_rpr"):
 		rpr = rs + "_rpr"
 	else:
 		rpr = cmds.shadingNode("RPRNormal", asUtility=True)
-		cmds.rename(rpr, rs + "_rpr")
-		rpr = rs + "_rpr"
+		rpr = cmds.rename(rpr, rs + "_rpr")
 		file = cmds.shadingNode("file", asTexture=True, isColorManaged=True)
 		texture = cmds.shadingNode("place2dTexture", asUtility=True)
 
@@ -348,8 +397,6 @@ def convertRedshiftNormalMap(rs, source):
 			print(ex)
 			print("Error convertion file texture map")
 
-		
-
 
 	# Logging to file (start)
 	start_log(rs, rpr)
@@ -376,8 +423,7 @@ def convertRedshiftAmbientOcclusion(rs, source):
 		rpr = rs + "_rpr"
 	else:
 		rpr = cmds.shadingNode("RPRAmbientOcclusion", asUtility=True)
-		cmds.rename(rpr, rs + "_rpr")
-		rpr = rs + "_rpr"
+		rpr = cmds.rename(rpr, rs + "_rpr")
 
 	# Logging to file
 	start_log(rs, rpr)
@@ -410,8 +456,7 @@ def convertRedshiftFresnel(rs, source):
 		rpr = cmds.shadingNode("RPRBlendValue", asUtility=True)
 	
 		fresnel = cmds.shadingNode("RPRFresnel", asUtility=True)
-		cmds.rename(fresnel, rs + "_rpr")
-		fresnel = rs + "_rpr"
+		fresnel = cmds.rename(fresnel, rs + "_rpr")
 
 		connectProperty(fresnel, "out", rpr, "weight")
 		copyProperty(fresnel, rs, "ior", "ior")
@@ -443,8 +488,7 @@ def convertRedshiftColorCorrection(rs, source):
 		rpr = rs + "_rpr"
 	else:
 		rpr = cmds.shadingNode("colorCorrect", asUtility=True)
-		cmds.rename(rpr, rs + "_rpr")
-		rpr = rs + "_rpr"
+		rpr = cmds.rename(rpr, rs + "_rpr")
 
 	# Logging to file
 	start_log(rs, rpr)
@@ -483,8 +527,7 @@ def convertRedshiftBumpMap(rs, source):
 			rpr = cmds.shadingNode("RPRNormal", asUtility=True)
 			write_own_property_log("Bump map conversion below is incorrect. You need conversion into Tangent Space.")
 
-		cmds.rename(rpr, rs + "_rpr")
-		rpr = rs + "_rpr"
+		rpr = cmds.rename(rpr, rs + "_rpr")
 
 	# Logging to file
 	start_log(rs, rpr)
@@ -515,12 +558,10 @@ def convertRedshiftColorLayer(rs, source):
 	else:
 		if layer1_blend_mode in (2, 3, 4, 15):
 			rpr = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			cmds.rename(rpr, rs + "_rpr")
-			rpr = rs + "_rpr"
+			rpr = cmds.rename(rpr, rs + "_rpr")
 		else:
 			rpr = cmds.shadingNode("RPRBlendMaterial", asShader=True)
-			cmds.rename(rpr, rs + "_rpr")
-			rpr = rs + "_rpr"
+			rpr = cmds.rename(rpr, rs + "_rpr")
 
 	# Logging to file
 	start_log(rs, rpr)
@@ -563,8 +604,7 @@ def convertRedshiftBumpBlender(rs, source):
 		rpr = rs + "_rpr"
 	else:
 		rpr = cmds.shadingNode("RPRBump", asUtility=True)
-		cmds.rename(rpr, rs + "_rpr")
-		rpr = rs + "_rpr"
+		rpr = cmds.rename(rpr, rs + "_rpr")
 
 		rpr_blend = cmds.shadingNode("RPRBlendMaterial", asShader=True)
 		connectProperty(rpr_blend, "outColor", rpr, "color")
@@ -602,8 +642,7 @@ def convertUnsupportedMaterial(rsMaterial, source):
 	else:
 		# Creating new Uber material
 		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
-		cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
-		rprMaterial = rsMaterial + "_rpr"
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
 
 		# Check shading engine in rsMaterial
 		if assigned:
@@ -636,8 +675,7 @@ def convertRedshiftArchitectural(rsMaterial, source):
 	else:
 		# Creating new Uber material
 		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
-		cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
-		rprMaterial = rsMaterial + "_rpr"
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
 
 		# Check shading engine in rsMaterial
 		if assigned:
@@ -741,6 +779,82 @@ def convertRedshiftArchitectural(rsMaterial, source):
 
 
 #######################
+## RedshiftSprite 
+#######################
+
+def convertRedshiftSprite(rsMaterial, source):
+
+	assigned = checkAssign(rsMaterial)
+	# Check material exist
+	if cmds.objExists(rsMaterial + "_rpr"):
+		rprMaterial = rsMaterial + "_rpr"
+	else:
+		# Creating new Uber material
+		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
+
+		# Check shading engine in rsMaterial
+		if assigned:
+			sg = rprMaterial + "SG"
+			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
+			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
+
+
+	# Logging to file
+	start_log(rsMaterial, rprMaterial)
+
+	# Fields conversion
+
+	# convert map
+	if getProperty(rsMaterial, "tex0"):
+
+		try:
+			file = cmds.shadingNode("file", asTexture=True, isColorManaged=True)
+			texture = cmds.shadingNode("place2dTexture", asUtility=True)
+
+			connectProperty(texture, "coverage", file, "coverage")
+			connectProperty(texture, "translateFrame", file, "translateFrame")
+			connectProperty(texture, "rotateFrame", file, "rotateFrame")
+			connectProperty(texture, "mirrorU", file, "mirrorU")
+			connectProperty(texture, "mirrorV", file, "mirrorV")
+			connectProperty(texture, "stagger", file, "stagger")
+			connectProperty(texture, "wrapU", file, "wrapU")
+			connectProperty(texture, "wrapV", file, "wrapV")
+			connectProperty(texture, "repeatUV", file, "repeatUV")
+			connectProperty(texture, "offset", file, "offset")
+			connectProperty(texture, "rotateUV", file, "rotateUV")
+			connectProperty(texture, "noiseUV", file, "noiseUV")
+			connectProperty(texture, "vertexUvOne", file, "vertexUvOne")
+			connectProperty(texture, "vertexUvTwo", file, "vertexUvTwo")
+			connectProperty(texture, "vertexUvThree", file, "vertexUvThree")
+			connectProperty(texture, "vertexCameraOne", file, "vertexCameraOne")
+			connectProperty(texture, "outUV", file, "uv")
+			connectProperty(texture, "outUvFilterSize", file, "uvFilterSize")
+			copyProperty(texture, rsMaterial, "repeatU", "repeats0")
+			copyProperty(texture, rsMaterial, "repeatV", "repeats1")
+
+			cmds.setAttr(file + ".fileTextureName", getProperty(rsMaterial, "tex0"), type="string")
+			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic, "operation", 1)
+			setProperty(arithmetic, "inputA", (1, 1, 1))
+			connectProperty(file, "outColor", arithmetic, "inputB")
+			connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")	
+			setProperty(rprMaterial, "transparencyEnable", 1)
+		except Exception as ex:
+			setProperty(rprMaterial, "transparencyEnable", 0)
+			print(ex)
+			print(u"Map conversion is failed in {}. Check this material. ".format(rsMaterial).encode('utf-8'))
+			write_own_property_log(u"Map conversion is failed in {}. Check this material. ".format(rsMaterial).encode('utf-8'))
+
+	# Logging in file
+	end_log(rsMaterial)
+
+	if not assigned:
+		rprMaterial += "." + source
+	return rprMaterial
+
+
+#######################
 ## RedshiftCarPaint 
 #######################
 
@@ -753,8 +867,7 @@ def convertRedshiftCarPaint(rsMaterial, source):
 	else:
 		# Creating new Uber material
 		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
-		cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
-		rprMaterial = rsMaterial + "_rpr"
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
 
 		# Check shading engine in rsMaterial
 		if assigned:
@@ -799,8 +912,7 @@ def convertRedshiftIncandescent(rsMaterial, source):
 	else:
 		# Creating new Uber material
 		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
-		cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
-		rprMaterial = rsMaterial + "_rpr"
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
 
 		# Check shading engine in rsMaterial
 		if assigned:
@@ -925,8 +1037,7 @@ def convertRedshiftMaterial(rsMaterial, source):
 	else:
 		# Creating new Uber material
 		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
-		cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
-		rprMaterial = rsMaterial + "_rpr"
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
 
 		# Check shading engine in rsMaterial
 		if assigned:
@@ -1179,8 +1290,7 @@ def convertRedshiftMaterialBlender(rsMaterial, source):
 	else:
 		# Creating new Uber material
 		rprMaterial = cmds.shadingNode("RPRBlendMaterial", asShader=True)
-		cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
-		rprMaterial = rsMaterial + "_rpr"
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
 
 		# Check shading engine in rsMaterial
 		if assigned:
@@ -1221,8 +1331,7 @@ def convertRedshiftMatteShadowCatcher(rsMaterial, source):
 	else:
 		# Creating new Uber material
 		rprMaterial = cmds.shadingNode("RPRShadowCatcherMaterial", asShader=True)
-		cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
-		rprMaterial = rsMaterial + "_rpr"
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
 
 		# Check shading engine in rsMaterial
 		if assigned:
@@ -1260,8 +1369,7 @@ def convertRedshiftSubSurfaceScatter(rsMaterial, source):
 	else:
 		# Creating new Uber material
 		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
-		cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
-		rprMaterial = rsMaterial + "_rpr"
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
 
 		# Check shading engine in rsMaterial
 		if assigned:
@@ -1754,8 +1862,7 @@ def convertRedshiftVolumeScattering(rsVolumeScattering):
 	else:
 		# Creating new Volume material
 		rprMaterial = cmds.shadingNode("RPRVolumeMaterial", asShader=True)
-		cmds.rename(rprMaterial, (rsVolumeScattering + "_rpr"))
-		rprMaterial = rsVolumeScattering + "_rpr"
+		rprMaterial = cmds.rename(rprMaterial, (rsVolumeScattering + "_rpr"))
 		
 		sg = rprMaterial + "SG"
 		cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
@@ -1801,7 +1908,7 @@ def convertRSMaterial(rsMaterial, source):
 		"RedshiftMatteShadowCatcher": convertRedshiftMatteShadowCatcher,
 		"RedshiftShaderSwitch": convertUnsupportedMaterial,
 		"RedshiftSkin": convertUnsupportedMaterial,
-		"RedshiftSprite": convertUnsupportedMaterial,
+		"RedshiftSprite": convertRedshiftSprite,
 		"RedshiftSubSurfaceScatter": convertRedshiftSubSurfaceScatter,
 		##utilities
 		"bump2d": convertbump2d,
@@ -1812,7 +1919,8 @@ def convertRSMaterial(rsMaterial, source):
 		"RedshiftFresnel": convertRedshiftFresnel,
 		"RedshiftColorLayer": convertRedshiftColorLayer,
 		"RedshiftBumpBlender": convertRedshiftBumpBlender,
-		"RedshiftColorCorrection": convertRedshiftColorCorrection
+		"RedshiftColorCorrection": convertRedshiftColorCorrection,
+		"RedshiftNoise": convertRedshiftNoise
 		
 	}
 
