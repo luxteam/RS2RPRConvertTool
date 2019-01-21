@@ -803,16 +803,12 @@ def convertRedshiftSprite(rsMaterial, source):
 		rprMaterial = rsMaterial + "_rpr"
 	else:
 		# Creating new Uber material
-		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
-		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
-
-		# Check shading engine in rsMaterial
-		if assigned:
-			sg = rprMaterial + "SG"
-			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
-
-
+		input_material = cmds.listConnections(rsMaterial + ".input")[0]
+		rprMaterial = convertRedshiftMaterial(input_material, "")[0:-1]
+		sg = rprMaterial + "SG"
+		cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
+		connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
+		
 	# Logging to file
 	start_log(rsMaterial, rprMaterial)
 
@@ -1921,7 +1917,7 @@ def convertRSMaterial(rsMaterial, source):
 		"RedshiftMatteShadowCatcher": convertRedshiftMatteShadowCatcher,
 		"RedshiftShaderSwitch": convertUnsupportedMaterial,
 		"RedshiftSkin": convertUnsupportedMaterial,
-		"RedshiftSprite": convertUnsupportedMaterial,
+		"RedshiftSprite": convertRedshiftSprite,
 		"RedshiftSubSurfaceScatter": convertRedshiftSubSurfaceScatter,
 		##utilities
 		"bump2d": convertbump2d,
