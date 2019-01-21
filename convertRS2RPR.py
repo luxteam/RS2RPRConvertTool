@@ -822,8 +822,32 @@ def convertRedshiftIncandescent(rsMaterial, source):
 
 	setProperty(rprMaterial, "emissiveDoubleSided", getProperty(rsMaterial, "doublesided"))
 
-	transparencyLevel = 1 - getProperty(rsMaterial, "alpha")
-	setProperty(rprMaterial, "transparencyLevel", transparencyLevel)
+	# Opacity convert. Material conversion doesn't support, because all rsMaterial have outColor, but we need outAlpha.
+	rs_opacity = rsMaterial + ".alpha"
+	rpr_opacity = rprMaterial + ".transparencyLevel"
+	try:
+		listConnections = cmds.listConnections(rs_opacity)
+		if listConnections:
+			obj, channel = cmds.connectionInfo(rs_opacity, sourceFromDestination=True).split('.')
+			listConnectionsRPR = cmds.listConnections(rpr_opacity, type="RPRArithmetic")
+			if not listConnectionsRPR:
+				arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			else:
+				arithmetic = listConnectionsRPR[0]
+			setProperty(arithmetic, "operation", 1)
+			setProperty(arithmetic, "inputA", (1, 1, 1))
+			connectProperty(obj, channel, arithmetic, "inputBX")
+			connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
+		else:
+			transparency = 1 - getProperty(rsMaterial, "alpha")
+			setProperty(rprMaterial, "transparencyLevel", transparency)
+		setProperty(rprMaterial, "transparencyEnable", 1)
+		copyProperty(rprMaterial, rsMaterial, "emissiveWeight", "alpha")
+	except Exception as ex:
+		setProperty(rprMaterial, "transparencyEnable", 0)
+		print(ex)
+		print(u"Conversion {} to {} is failed. Check this material. ".format(source, rpr_opacity).encode('utf-8'))
+		write_own_property_log(u"Conversion {} to {} is failed. Check this material. ".format(source, rpr_opacity).encode('utf-8'))
 
 	# converting temperature to emissive color
 	# no_rpr_analog
@@ -1114,9 +1138,8 @@ def convertRedshiftMaterial(rsMaterial, source):
 			connectProperty(obj, channel, arithmetic, "inputB")
 			connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
 		else:
-			rs_opacity = getProperty(rsMaterial, "opacity_color")
-			max_value = 1 - max(rs_opacity)
-			setProperty(rprMaterial, "transparencyLevel", max_value)
+			transparency = 1 - max(getProperty(rsMaterial, "opacity_color"))
+			setProperty(rprMaterial, "transparencyLevel", transparency)
 		setProperty(rprMaterial, "transparencyEnable", 1)
 	except Exception as ex:
 		setProperty(rprMaterial, "transparencyEnable", 0)
