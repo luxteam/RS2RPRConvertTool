@@ -152,24 +152,19 @@ def getProperty(material, attr):
 
 	return value
 
-def mapDoesNotExist(rpr_name, rs_name, rpr_attr, rs_attr):
+def mapDoesNotExist(rs_name, rs_attr):
 
 	# full name of attribute
 	rs_field = rs_name + "." + rs_attr
-	rpr_field = rpr_name + "." + rpr_attr
 
 	try:
 		listConnections = cmds.listConnections(rs_field)
+		if listConnections:
+			return 0
 	except Exception as ex:
 		print(ex)
 		write_own_property_log(u"There is no {} field in this node. Check the field and try again. ".format(rs_field).encode('utf-8'))
 		return
-
-	if listConnections:
-		source = cmds.connectionInfo(rs_field, sourceFromDestination=True)
-		print(u"Connection {} to {} isn't available. Map isn't supported in this field.".format(source, rpr_field).encode('utf-8'))
-		write_own_property_log(u"Connection {} to {} isn't available. Map isn't supported for this field.".format(source, rpr_field).encode('utf-8'))
-		return 0
 
 	return 1
 
@@ -513,10 +508,9 @@ def convertRedshiftColorCorrection(rs, source):
 	copyProperty(rpr, rs, "valGain", "level")
 
 	# gamma conversion. Doesn't support map conversion.
-	if mapDoesNotExist(rpr, rs, "gamma", "colGamma"):
+	if mapDoesNotExist(rs, "gamma"):
 		gamma = getProperty(rs, "gamma")
-		colGamma = (gamma, gamma, gamma)
-		setProperty(rpr, "colGamma", colGamma)
+		setProperty(rpr, "colGamma", (gamma, gamma, gamma))
 
 	# Logging to file
 	end_log(rs)
@@ -723,7 +717,7 @@ def convertRedshiftArchitectural(rsMaterial, source):
 	copyProperty(rprMaterial, rsMaterial, "reflectWeight", "reflectivity")
 	copyProperty(rprMaterial, rsMaterial, "reflectIOR", "brdf_fresnel_ior")
 
-	if mapDoesNotExist(rprMaterial, rsMaterial, "reflectRoughness", "refl_gloss"):  
+	if mapDoesNotExist(rsMaterial, "refl_gloss"):  
 		gloss = 1 - getProperty(rsMaterial, "refl_gloss")
 		setProperty(rprMaterial, "reflectRoughness", gloss)
 
@@ -739,9 +733,9 @@ def convertRedshiftArchitectural(rsMaterial, source):
 			setProperty(rprMaterial, "reflectMetalMaterial", 1)
 			setProperty(rprMaterial, "reflectMetalness", 1)
 
-			if mapDoesNotExist(rprMaterial, rsMaterial, "diffuseWeight", "diffuse_weight"):
+			if mapDoesNotExist(rsMaterial, "diffuse_weight"):
 				setProperty(rprMaterial, "diffuseWeight", 0)
-			if mapDoesNotExist(rprMaterial, rsMaterial, "reflectWeight", "reflectivity"):
+			if mapDoesNotExist(rsMaterial, "reflectivity"):
 				setProperty(rprMaterial, "reflectWeight", 1)
 
 			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
@@ -758,7 +752,7 @@ def convertRedshiftArchitectural(rsMaterial, source):
 	copyProperty(rprMaterial, rsMaterial, "refractColor", "refr_color")
 	copyProperty(rprMaterial, rsMaterial, "refractWeight", "transparency")
 
-	if mapDoesNotExist(rprMaterial, rsMaterial, "refractRoughness", "refr_gloss"):   
+	if mapDoesNotExist(rsMaterial, "refr_gloss"):   
 		gloss = 1 - getProperty(rsMaterial, "refr_gloss")
 		setProperty(rprMaterial, "refractRoughness", gloss)
 			
@@ -779,7 +773,7 @@ def convertRedshiftArchitectural(rsMaterial, source):
 	copyProperty(rprMaterial, rsMaterial, "emissiveWeight", "incandescent_scale")
 
 	setProperty(rprMaterial, "transparencyEnable", 1)
-	if mapDoesNotExist(rprMaterial, rsMaterial, "transparencyLevel", "cutout_opacity"):  
+	if mapDoesNotExist(rsMaterial, "cutout_opacity"):  
 		opacity = 1 - getProperty(rsMaterial,  "cutout_opacity")
 		setProperty(rprMaterial, "transparencyLevel", opacity)
 			
@@ -1171,18 +1165,18 @@ def convertRedshiftMaterial(rsMaterial, source):
 	# maps doesn't support ( will work incorrectly )
 	ss_unitsMode = getProperty(rsMaterial, "ss_unitsMode")
 	if ss_unitsMode:
-		if mapDoesNotExist(rprMaterial, rsMaterial, "refractAbsorbColor", "ss_extinction_coeff"):
+		if mapDoesNotExist(rsMaterial, "ss_extinction_coeff"):
 			ss_ext_coeff = getProperty(rsMaterial, "ss_extinction_coeff")
 			absorb_color = (1 - ss_ext_coeff[0], 1 - ss_ext_coeff[1], 1 - ss_ext_coeff[2])
 			setProperty(rprMaterial, "refractAbsorbColor", absorb_color)
 
-		if mapDoesNotExist(rprMaterial, rsMaterial, "refractAbsorptionDistance", "ss_extinction_scale"):
+		if mapDoesNotExist(rsMaterial, "ss_extinction_scale"):
 			absorption = 1 / getProperty(rsMaterial,  "ss_extinction_scale")
 			setProperty(rprMaterial, "refractAbsorptionDistance", absorption)
 
 	else:
 		copyProperty(rprMaterial, rsMaterial, "refractAbsorbColor", "refr_transmittance")
-		if mapDoesNotExist(rprMaterial, rsMaterial, "refractAbsorptionDistance", "refr_absorption_scale"):
+		if mapDoesNotExist(rsMaterial, "refr_absorption_scale"):
 			absorption = 1 / getProperty(rsMaterial, "refr_absorption_scale")
 			setProperty(rprMaterial, "refractAbsorptionDistance", absorption)
 
@@ -1238,8 +1232,68 @@ def convertRedshiftMaterial(rsMaterial, source):
 	backscatteringWeight = getProperty(rsMaterial, "transl_weight")
 	if backscatteringWeight:
 		setProperty(rprMaterial, "separateBackscatterColor", 1)
-		copyProperty(rprMaterial, rsMaterial, "backscatteringColor", "transl_color")
-		copyProperty(rprMaterial, rsMaterial, "backscatteringWeight", "transl_weight")
+
+		if mapDoesNotExist(rsMaterial, "transl_weight"):
+			transl_weight = getProperty(rsMaterial, "transl_weight")
+			transl_color = getProperty(rsMaterial, "transl_color")
+			avg_color = sum(transl_color) / 3.0
+			if transl_weight < 0.5:
+				if avg_color < transl_weight:
+					setProperty(rprMaterial, "backscatteringWeight", avg_color)
+				else:
+					setProperty(rprMaterial, "backscatteringWeight", transl_weight)
+			elif transl_weight >= 0.5:
+				if avg_color < transl_weight and avg_color * 2 <= 1:
+					setProperty(rprMaterial, "backscatteringWeight", avg_color * 2)
+				elif transl_weight * 2 <= 1:
+					setProperty(rprMaterial, "backscatteringWeight", transl_weight * 2)
+				else:
+					setProperty(rprMaterial, "backscatteringWeight", 1)
+		else:
+			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic, "operation", 2)
+			copyProperty(arithmetic, rsMaterial, "inputAX", "transl_weight")
+			setProperty(arithmetic, "inputB", (0.5, 0.5, 0.5))
+			connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
+
+		if mapDoesNotExist(rsMaterial, "transl_color"):
+			transl_color = getProperty(rsMaterial, "transl_color")
+			arithmetic1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic1, "operation", 0)
+			setProperty(arithmetic1, "inputA", transl_color)
+			remap_color = []
+			for i in range(len(transl_color)):
+				remap_color.append(remap_value(transl_color[i], 1.0, 0.0, 0.0, 0.7))
+			setProperty(arithmetic1, "inputB", tuple(remap_color))
+
+			arithmetic2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic2, "operation", 20)
+			setProperty(arithmetic2, "inputA", transl_color)
+			setProperty(arithmetic2, "inputB", (2.2, 2.2, 2.2))
+
+			arithmetic3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic3, "operation", 2)
+			connectProperty(arithmetic1, "out", arithmetic3, "inputA")
+			connectProperty(arithmetic2, "out", arithmetic3, "inputB")
+
+			connectProperty(arithmetic3, "out", rprMaterial, "backscatteringColor")
+		else:
+			arithmetic1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic1, "operation", 0)
+			copyProperty(arithmetic1, rsMaterial, "inputA", "transl_color")
+			setProperty(arithmetic1, "inputB", (0.6, 0.6, 0.6))
+
+			arithmetic2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic2, "operation", 20)
+			copyProperty(arithmetic2, rsMaterial, "inputA", "transl_color")
+			setProperty(arithmetic2, "inputB", (2.2, 2.2, 2.2))
+
+			arithmetic3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic3, "operation", 2)
+			connectProperty(arithmetic1, "out", arithmetic3, "inputA")
+			connectProperty(arithmetic2, "out", arithmetic3, "inputB")
+
+			connectProperty(arithmetic3, "out", rprMaterial, "backscatteringColor")
 
 	# Opacity convert. Material conversion doesn't support, because all rsMaterial have outColor, but we need outAlpha.
 	rs_opacity = rsMaterial + ".opacity_color"
@@ -1403,13 +1457,13 @@ def convertRedshiftSubSurfaceScatter(rsMaterial, source):
 	copyProperty(rprMaterial, rsMaterial, "volumeScatter", "sub_surface_color")
 	copyProperty(rprMaterial, rsMaterial, "backscatteringColor", "scatter_color")
 
-	if mapDoesNotExist(rprMaterial, rsMaterial, "subsurfaceRadius", "scatter_color"):   
+	if mapDoesNotExist(rsMaterial, "scatter_color"):   
 		radius = getProperty(rsMaterial, "scatter_radius")
 		scatterColor= getProperty(rsMaterial, "scatter_color")
 		sssRadius = [radius + scatterColor[0] * 1.5, radius + scatterColor[1], radius + scatterColor[2]]
 		setProperty(rprMaterial, "subsurfaceRadius", tuple(sssRadius))
 		
-	if mapDoesNotExist(rprMaterial, rsMaterial, "reflectRoughness", "refl_gloss"):  
+	if mapDoesNotExist(rsMaterial, "refl_gloss"):  
 		gloss = 1 - getProperty(rsMaterial, "refl_gloss")
 		setProperty(rprMaterial, "reflectRoughness", gloss)
 	   
@@ -1997,6 +2051,19 @@ def cleanScene():
 				cmds.delete(obj)
 			except Exception as ex:
 				print(ex)
+
+
+def remap_value(value, maxInput, minInput, maxOutput, minOutput):
+
+	value = maxInput if value > maxInput else value
+	value = minInput if value < minInput else value
+
+	inputDiff = maxInput - minInput
+	outputDiff = maxOutput - minOutput
+
+	remapped_value = minOutput + ((float(value - minInput) / float(inputDiff)) * outputDiff)
+
+	return remapped_value
 
 
 def checkAssign(material):
