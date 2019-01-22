@@ -318,7 +318,7 @@ def convertRedshiftNoise(rs, source):
 	setProperty(rpr, "amplitude", getProperty(rs, "noise_gain") / 2)
 
 	if noiseType == 0:
-		setProperty(rs, "noiseType", 1)
+		setProperty(rpr, "noiseType", 1)
 		copyProperty(rpr, rs, "octaves", "noise_complexity")
 		copyProperty(rpr, rs, "frequency", "noise_scale")
 		copyProperty(rpr, rs, "distortionU", "distort")
