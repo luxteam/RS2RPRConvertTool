@@ -296,31 +296,15 @@ def convertRedshiftNoise(rs, source):
 	else:
 		if noiseType == 0:
 			rpr = cmds.shadingNode("simplexNoise", asUtility=True)
-		elif noiseType == 1:
-			rpr = cmds.shadingNode("fractal", asUtility=True)
 		elif noiseType == 2:
+			rpr = cmds.shadingNode("fractal", asUtility=True)
+		elif noiseType == 3:
 			rpr = cmds.shadingNode("noise", asUtility=True)
 
 		rpr = cmds.rename(rpr, rs + "_rpr")
 
 		texture = cmds.shadingNode("place2dTexture", asUtility=True)
 
-		connectProperty(texture, "coverage", rpr, "coverage")
-		connectProperty(texture, "translateFrame", rpr, "translateFrame")
-		connectProperty(texture, "rotateFrame", rpr, "rotateFrame")
-		connectProperty(texture, "mirrorU", rpr, "mirrorU")
-		connectProperty(texture, "mirrorV", rpr, "mirrorV")
-		connectProperty(texture, "stagger", rpr, "stagger")
-		connectProperty(texture, "wrapU", rpr, "wrapU")
-		connectProperty(texture, "wrapV", rpr, "wrapV")
-		connectProperty(texture, "repeatUV", rpr, "repeatUV")
-		connectProperty(texture, "offset", rpr, "offset")
-		connectProperty(texture, "rotateUV", rpr, "rotateUV")
-		connectProperty(texture, "noiseUV", rpr, "noiseUV")
-		connectProperty(texture, "vertexUvOne", rpr, "vertexUvOne")
-		connectProperty(texture, "vertexUvTwo", rpr, "vertexUvTwo")
-		connectProperty(texture, "vertexUvThree", rpr, "vertexUvThree")
-		connectProperty(texture, "vertexCameraOne", rpr, "vertexCameraOne")
 		connectProperty(texture, "outUV", rpr, "uv")
 		connectProperty(texture, "outUvFilterSize", rpr, "uvFilterSize")
 		setProperty(texture, "repeatU", getProperty(rs, "coord_scale_global") * getProperty(rs, "coord_scale0"))
@@ -335,16 +319,16 @@ def convertRedshiftNoise(rs, source):
 
 	if noiseType == 0:
 		setProperty(rs, "noiseType", 1)
-		copyProperty(rpr, rs, "noise_complexity", "octaves")
-		copyProperty(rpr, rs, "noise_scale", "frequency")
-		copyProperty(rpr, rs, "distort", "distortionU")
-		copyProperty(rpr, rs, "distort", "distortionV")
-		copyProperty(rpr, rs, "distort_scale", "distortionRatio")
-	elif noiseType == 1:
-		copyProperty(rpr, rs, "noise_scale", "frequencyRatio")
+		copyProperty(rpr, rs, "octaves", "noise_complexity")
+		copyProperty(rpr, rs, "frequency", "noise_scale")
+		copyProperty(rpr, rs, "distortionU", "distort")
+		copyProperty(rpr, rs, "distortionV", "distort")
+		copyProperty(rpr, rs, "distortionRatio", "distort_scale")
 	elif noiseType == 2:
-		copyProperty(rpr, rs, "noise_complexity", "depthMax")
-		copyProperty(rpr, rs, "noise_scale", "frequencyRatio")
+		copyProperty(rpr, rs, "frequencyRatio", "noise_scale")
+	elif noiseType == 3:
+		copyProperty(rpr, rs, "depthMax", "noise_complexity")
+		copyProperty(rpr, rs, "frequencyRatio", "noise_scale")
 
 	# Logging to file (end)
 	end_log(rs)
