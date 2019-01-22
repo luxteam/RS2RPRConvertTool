@@ -121,20 +121,18 @@ def setProperty(rpr_name, rpr_attr, value):
 	# full name of attribute
 	rpr_field = rpr_name + "." + rpr_attr
 
-	if type(value) == tuple:
-		try:
+	try:
+		if type(value) == tuple:
 			cmds.setAttr(rpr_field, value[0], value[1], value[2])
-			write_own_property_log(u"Set value {} to {}.".format(value, rpr_field).encode('utf-8'))
-		except Exception:
-			print(u"Set value {} to {} is failed. Check the values and their boundaries. ".format(value, rpr_field).encode('utf-8'))
-			write_own_property_log(u"Set value {} to {} is failed. Check the values and their boundaries. ".format(value, rpr_field).encode('utf-8'))
-	else:
-		try:
+		elif type(value) == str or type(value) == unicode:
+			cmds.setAttr(rpr_field, value, type="string")
+		else:
 			cmds.setAttr(rpr_field, value)
-			write_own_property_log(u"Set value {} to {}.".format(value, rpr_field).encode('utf-8'))
-		except Exception:
-			print(u"Set value {} to {} is failed. Check the values and their boundaries. ".format(value, rpr_field).encode('utf-8'))
-			write_own_property_log(u"Set value {} to {} is failed. Check the values and their boundaries. ".format(value, rpr_field).encode('utf-8'))
+		write_own_property_log(u"Set value {} to {}.".format(value, rpr_field).encode('utf-8'))
+	except Exception as ex:
+		print(ex)
+		print(u"Set value {} to {} is failed. Check the values and their boundaries. ".format(value, rpr_field).encode('utf-8'))
+		write_own_property_log(u"Set value {} to {} is failed. Check the values and their boundaries. ".format(value, rpr_field).encode('utf-8'))
 
 
 def getProperty(material, attr):
@@ -398,14 +396,9 @@ def convertRedshiftNormalMap(rs, source):
 		else:
 			connectProperty(file, "outColor", rpr, "color")
 
-		try:
-			cmds.setAttr(file + ".fileTextureName", getProperty(rs, "tex0"), type="string")
-			write_converted_property_log(rpr, rs, "fileTextureName", "tex0")
-		except Exception as ex:
-			print(ex)
-			print("Error convertion file texture map")
-
-
+		setProperty(file, "colorSpace", "Raw")
+		setProperty(file, "fileTextureName", getProperty(rs, "tex0"))
+		
 	# Logging to file (start)
 	start_log(rs, rpr)
 
@@ -811,43 +804,38 @@ def convertRedshiftSprite(rsMaterial, source):
 	# convert map
 	if getProperty(rsMaterial, "tex0"):
 
-		try:
-			file = cmds.shadingNode("file", asTexture=True, isColorManaged=True)
-			texture = cmds.shadingNode("place2dTexture", asUtility=True)
+		file = cmds.shadingNode("file", asTexture=True, isColorManaged=True)
+		texture = cmds.shadingNode("place2dTexture", asUtility=True)
 
-			connectProperty(texture, "coverage", file, "coverage")
-			connectProperty(texture, "translateFrame", file, "translateFrame")
-			connectProperty(texture, "rotateFrame", file, "rotateFrame")
-			connectProperty(texture, "mirrorU", file, "mirrorU")
-			connectProperty(texture, "mirrorV", file, "mirrorV")
-			connectProperty(texture, "stagger", file, "stagger")
-			connectProperty(texture, "wrapU", file, "wrapU")
-			connectProperty(texture, "wrapV", file, "wrapV")
-			connectProperty(texture, "repeatUV", file, "repeatUV")
-			connectProperty(texture, "offset", file, "offset")
-			connectProperty(texture, "rotateUV", file, "rotateUV")
-			connectProperty(texture, "noiseUV", file, "noiseUV")
-			connectProperty(texture, "vertexUvOne", file, "vertexUvOne")
-			connectProperty(texture, "vertexUvTwo", file, "vertexUvTwo")
-			connectProperty(texture, "vertexUvThree", file, "vertexUvThree")
-			connectProperty(texture, "vertexCameraOne", file, "vertexCameraOne")
-			connectProperty(texture, "outUV", file, "uv")
-			connectProperty(texture, "outUvFilterSize", file, "uvFilterSize")
-			copyProperty(texture, rsMaterial, "repeatU", "repeats0")
-			copyProperty(texture, rsMaterial, "repeatV", "repeats1")
+		connectProperty(texture, "coverage", file, "coverage")
+		connectProperty(texture, "translateFrame", file, "translateFrame")
+		connectProperty(texture, "rotateFrame", file, "rotateFrame")
+		connectProperty(texture, "mirrorU", file, "mirrorU")
+		connectProperty(texture, "mirrorV", file, "mirrorV")
+		connectProperty(texture, "stagger", file, "stagger")
+		connectProperty(texture, "wrapU", file, "wrapU")
+		connectProperty(texture, "wrapV", file, "wrapV")
+		connectProperty(texture, "repeatUV", file, "repeatUV")
+		connectProperty(texture, "offset", file, "offset")
+		connectProperty(texture, "rotateUV", file, "rotateUV")
+		connectProperty(texture, "noiseUV", file, "noiseUV")
+		connectProperty(texture, "vertexUvOne", file, "vertexUvOne")
+		connectProperty(texture, "vertexUvTwo", file, "vertexUvTwo")
+		connectProperty(texture, "vertexUvThree", file, "vertexUvThree")
+		connectProperty(texture, "vertexCameraOne", file, "vertexCameraOne")
+		connectProperty(texture, "outUV", file, "uv")
+		connectProperty(texture, "outUvFilterSize", file, "uvFilterSize")
+		copyProperty(texture, rsMaterial, "repeatU", "repeats0")
+		copyProperty(texture, rsMaterial, "repeatV", "repeats1")
 
-			cmds.setAttr(file + ".fileTextureName", getProperty(rsMaterial, "tex0"), type="string")
-			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic, "operation", 1)
-			setProperty(arithmetic, "inputA", (1, 1, 1))
-			connectProperty(file, "outColor", arithmetic, "inputB")
-			connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")	
-			setProperty(rprMaterial, "transparencyEnable", 1)
-		except Exception as ex:
-			setProperty(rprMaterial, "transparencyEnable", 0)
-			print(ex)
-			print(u"Map conversion is failed in {}. Check this material. ".format(rsMaterial).encode('utf-8'))
-			write_own_property_log(u"Map conversion is failed in {}. Check this material. ".format(rsMaterial).encode('utf-8'))
+		setProperty(file, "fileTextureName", getProperty(rsMaterial, "tex0"))
+		arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(arithmetic, "operation", 1)
+		setProperty(arithmetic, "inputA", (1, 1, 1))
+		connectProperty(file, "outColor", arithmetic, "inputB")
+		connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")	
+		setProperty(rprMaterial, "transparencyEnable", 1)
+
 
 	# Logging in file
 	end_log(rsMaterial)
@@ -1530,15 +1518,10 @@ def convertRedshiftEnvironment(env):
 		print(ex)
 		print("Failed to convert rotate properties from Redshift Environment")
 	
-	try:
-		texMode = getProperty(env, "texMode")
-		if not texMode:
-			ibl_map = getProperty(env, "tex0")
-			cmds.setAttr(iblTransform + ".filePath", ibl_map, type="string")
-	except Exception as ex:
-		print(ex)
-		print("Failed to convert map from Redshift Environment")
-		   
+	texMode = getProperty(env, "texMode")
+	if texMode == 0: # default
+		setProperty(iblTransform, "filePath", getProperty(env, "tex0"))
+	   
 	# Logging to file
 	end_log(env)  
 
@@ -1565,12 +1548,7 @@ def convertRedshiftDomeLight(dome_light):
 
 	copyProperty(iblShape, dome_light, "display", "background_enable")
 
-	try:
-		ibl_map = getProperty(dome_light, "tex0")
-		cmds.setAttr(iblTransform + ".filePath", ibl_map, type="string")
-	except Exception as ex:
-		print(ex)
-		print("Failed to convert map from Redshift Environment")
+	setProperty(iblTransform, "filePath", getProperty(dome_light, "tex0"))
 	
 	domeTransform = cmds.listRelatives(dome_light, p=True)[0]
 	rotateY = getProperty(domeTransform, "rotateY") - 90
@@ -1892,16 +1870,8 @@ def convertRedshiftIESLight(rs_light):
 	intensity = getProperty(rs_light, "multiplier")
 	exposure = getProperty(rs_light, "exposure")
 	setProperty(rprLightShape, "intensity", intensity * 2 ** exposure)
-	
 	copyProperty(rprLightShape, rs_light, "color", "color")
-
-	try:
-		ies = getProperty(rs_light, "profile")
-		cmds.setAttr(rprLightShape + ".iesFile", ies, type="string")
-	except Exception as ex:
-		print(ex)
-		print("Failed to convert map from Redshift IES light")
-	
+	setProperty(rprLightShape, "iesFile", getProperty(rs_light, "profile"))
 	
 	copyProperty(rprTransform, rsTransform, "translateX", "translateX")
 	copyProperty(rprTransform, rsTransform, "translateY", "translateY")
@@ -2080,11 +2050,11 @@ def checkAssign(material):
 
 def defaultEnable(RPRmaterial, rsMaterial, enable, value):
 
-	weight = cmds.getAttr(rsMaterial + "." + value)
+	weight = getProperty(rsMaterial, value)
 	if weight > 0:
-		cmds.setAttr(RPRmaterial + "." + enable, 1)
+		setProperty(RPRmaterial, enable, 1)
 	else:
-		cmds.setAttr(RPRmaterial + "." + enable, 0)
+		setProperty(RPRmaterial, enable, 0)
 
 
 def convertScene():
@@ -2152,7 +2122,7 @@ def convertScene():
 			print("Error while converting {} material. \n".format(rs))
 	
 	# globals conversion
-	cmds.setAttr("defaultRenderGlobals.currentRenderer", "FireRender", type="string")
+	setProperty("defaultRenderGlobals","currentRenderer", "FireRender")
 	setProperty("defaultRenderGlobals", "imageFormat", 8)
 	setProperty("RadeonProRenderGlobals", "completionCriteriaIterations", getProperty("redshiftOptions", "progressiveRenderingNumPasses") * 1.5)
 	setProperty("RadeonProRenderGlobals", "giClampIrradiance", 1)
