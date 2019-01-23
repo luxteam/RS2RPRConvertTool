@@ -13,8 +13,7 @@ WE DON'T SUPPORT:
      MaterialBlender   
      ShaderSwitch  
      Skin  
-     Sprite 
-        
+            
 2) Utilities  
     
      AmbientOcclusion  
