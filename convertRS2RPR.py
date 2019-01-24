@@ -52,7 +52,7 @@ def write_converted_property_log(rpr_name, rs_name, rpr_attr, rs_attr):
 	try:
 		file_path = cmds.file(q=True, sceneName=True) + ".log"
 		with open(file_path, 'a') as f:
-			f.write(u"    property {}.{} is converted to {}.{}   \r\n".format(rpr_name, rpr_attr, rs_attr, rs_name).encode('utf-8'))
+			f.write(u"    property {}.{} is converted to {}.{}   \r\n".format(rs_name, rs_attr, rpr_name, rpr_attr).encode('utf-8'))
 	except Exception as ex:
 		print("Error writing conversion logs. Scene is not saved")
 
@@ -107,13 +107,17 @@ def copyProperty(rpr_name, rs_name, rpr_attr, rs_attr):
 		write_own_property_log(u"There is no {} field in this node. Check the field and try again. ".format(rs_field).encode('utf-8'))
 		return
 
-	if listConnections:
-		obj, channel = cmds.connectionInfo(rs_field, sourceFromDestination=True).split('.')
-		source_name, source_attr = convertRSMaterial(obj, channel).split('.')
-		connectProperty(source_name, source_attr, rpr_name, rpr_attr)
-	else:
-		setProperty(rpr_name, rpr_attr, getProperty(rs_name, rs_attr))
-		write_converted_property_log(rpr_name, rs_name, rpr_attr, rs_attr)
+	try:
+		if listConnections:
+			obj, channel = cmds.connectionInfo(rs_field, sourceFromDestination=True).split('.')
+			source_name, source_attr = convertRSMaterial(obj, channel).split('.')
+			connectProperty(source_name, source_attr, rpr_name, rpr_attr)
+		else:
+			setProperty(rpr_name, rpr_attr, getProperty(rs_name, rs_attr))
+			write_converted_property_log(rpr_name, rs_name, rpr_attr, rs_attr)
+	except Exception as ex:
+		print(ex)
+		print(u"Error while copying from {} to {}".format(rs_field, rpr_field).encode('utf-8'))
 
 
 def setProperty(rpr_name, rpr_attr, value):
@@ -227,13 +231,9 @@ def convertbump2d(rs, source):
 	start_log(rs, rpr)
 
 	# Fields conversion
-	try:
-		bumpConnections = cmds.listConnections(rs + ".bumpValue", type="file")[0]
-		if bumpConnections:
-			connectProperty(bumpConnections, "outColor", rpr, "color")
-	except Exception:
-		print("Connection {} to {} failed. Check the connectors. ".format(bumpConnections + ".outColor", rpr + ".color"))
-		write_own_property_log("Connection {} to {} failed. Check the connectors. ".format(bumpConnections + ".outColor", rpr + ".color"))
+	bumpConnections = cmds.listConnections(rs + ".bumpValue", type="file")
+	if bumpConnections:
+		connectProperty(bumpConnections[0], "outColor", rpr, "color")
 
 	copyProperty(rpr, rs, "strength", "bumpDepth")
 
@@ -749,10 +749,40 @@ def convertRedshiftArchitectural(rsMaterial, source):
 	copyProperty(rprMaterial, rsMaterial, "emissiveColor", "additional_color")
 	copyProperty(rprMaterial, rsMaterial, "emissiveWeight", "incandescent_scale")
 
-	setProperty(rprMaterial, "transparencyEnable", 1)
-	if mapDoesNotExist(rsMaterial, "cutout_opacity"):  
-		opacity = 1 - getProperty(rsMaterial,  "cutout_opacity")
-		setProperty(rprMaterial, "transparencyLevel", opacity)
+	# Opacity convert. Material conversion doesn't support, because all rsMaterial have outColor, but we need outAlpha.
+	rs_opacity = rsMaterial + ".cutout_opacity"
+	rpr_opacity = rprMaterial + ".transparencyLevel"
+	try:
+		listConnections = cmds.listConnections(rs_opacity)
+		if listConnections:
+			obj, channel = cmds.connectionInfo(rs_opacity, sourceFromDestination=True).split('.')
+			listConnectionsRPR = cmds.listConnections(rpr_opacity, type="RPRArithmetic")
+			if not listConnectionsRPR:
+				arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			else:
+				arithmetic = listConnectionsRPR[0]
+			setProperty(arithmetic, "operation", 1)
+			setProperty(arithmetic, "inputA", (1, 1, 1))
+			connectProperty(obj, channel, arithmetic, "inputB")
+			connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
+		else:
+			transparency = 1 - max(getProperty(rsMaterial, "cutout_opacity"))
+			setProperty(rprMaterial, "transparencyLevel", transparency)
+		setProperty(rprMaterial, "transparencyEnable", 1)
+	except Exception as ex:
+		setProperty(rprMaterial, "transparencyEnable", 0)
+		print(ex)
+		print(u"Conversion {} to {} is failed. Check this material. ".format(source, rpr_opacity).encode('utf-8'))
+		write_own_property_log(u"Conversion {} to {} is failed. Check this material. ".format(source, rpr_opacity).encode('utf-8'))
+
+	bumpConnections = cmds.listConnections(rsMaterial + ".bump_input")
+	if bumpConnections:
+		setProperty(rprMaterial, "normalMapEnable", 1)
+		copyProperty(rprMaterial, rsMaterial, "normalMap", "bump_input")
+		setProperty(rprMaterial, "useShaderNormal", not getProperty(rsMaterial, "no_diffuse_bump"))
+		setProperty(rprMaterial, "reflectUseShaderNormal", not getProperty(rsMaterial, "no_refl0_bump"))
+		setProperty(rprMaterial, "refractUseShaderNormal", not getProperty(rsMaterial, "no_refr_bump"))
+		setProperty(rprMaterial, "coatUseShaderNormal", not getProperty(rsMaterial, "no_refl1_bump"))
 			
 	# Logging in file
 	end_log(rsMaterial)
@@ -1293,15 +1323,15 @@ def convertRedshiftMaterial(rsMaterial, source):
 		print(u"Conversion {} to {} is failed. Check this material. ".format(source, rpr_opacity).encode('utf-8'))
 		write_own_property_log(u"Conversion {} to {} is failed. Check this material. ".format(source, rpr_opacity).encode('utf-8'))
 
-	try:
-		bumpConnections = cmds.listConnections(rsMaterial + ".bump_input")
-		if bumpConnections:
-			setProperty(rprMaterial, "normalMapEnable", 1)
-			copyProperty(rprMaterial, rsMaterial, "normalMap", "bump_input")
-	except Exception as ex:
-		print(ex)
-		print("Failed to convert bump.")
-		write_own_property_log("Failed to convert bump.")
+	bumpConnections = cmds.listConnections(rsMaterial + ".bump_input")
+	if bumpConnections:
+		setProperty(rprMaterial, "normalMapEnable", 1)
+		copyProperty(rprMaterial, rsMaterial, "normalMap", "bump_input")
+		setProperty(rprMaterial, "useShaderNormal", 1)
+		setProperty(rprMaterial, "reflectUseShaderNormal", 1)
+		setProperty(rprMaterial, "refractUseShaderNormal", 1)
+		setProperty(rprMaterial, "coatUseShaderNormal", 1)
+	
 
 	# Logging to file
 	end_log(rsMaterial)
@@ -1341,9 +1371,9 @@ def convertRedshiftMaterialBlender(rsMaterial, source):
 	copyProperty(rprMaterial, rsMaterial, "color1", "layerColor1")
 
 	# weight conversion
-	weight = cmds.listConnections(rsMaterial + ".blendColor1")[0]
+	weight = cmds.listConnections(rsMaterial + ".blendColor1")
 	if weight:
-		connectProperty(weight, "outAlpha", rprMaterial, "weight")
+		connectProperty(weight[0], "outAlpha", rprMaterial, "weight")
 
 	# Logging to file
 	end_log(rsMaterial) 
