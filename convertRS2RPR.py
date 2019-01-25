@@ -36,6 +36,16 @@ v.2.12 - Update units type of physical light conversion
 v.2.13 - Update opacity conversion, fix material & bump map conversion
 		Update rsColorLayer conversion. Fix bug with file color space
 		Global settings conversion
+v.2.14 - Fixed issue with group of lights
+		Fixed issue with unassign materials with shader catcher
+		bump2d and multiplyDivide nodes support
+		Improve conversion of global render settings
+		Improve rsBumpMap and rsNormalMap conversion
+		Improve metal conversion in rsArchitectural
+		Improve opacity conversion in rsMaterial and rsIncandescent
+		rsNoise node support
+		rsSprite material support
+		Improve rsMaterial Translucency conversion
 
 '''
 
@@ -1236,26 +1246,49 @@ def convertRedshiftMaterial(rsMaterial, source):
 		setProperty(rprMaterial, "separateBackscatterColor", 1)
 
 		if mapDoesNotExist(rsMaterial, "transl_weight"):
-			transl_weight = getProperty(rsMaterial, "transl_weight")
-			transl_color = getProperty(rsMaterial, "transl_color")
-			avg_color = sum(transl_color) / 3.0
-			if transl_weight < 0.5:
-				if avg_color < transl_weight:
-					setProperty(rprMaterial, "backscatteringWeight", avg_color)
+			if mapDoesNotExist(rsMaterial, "transl_color"):
+				transl_weight = getProperty(rsMaterial, "transl_weight")
+				transl_color = getProperty(rsMaterial, "transl_color")
+				avg_color = sum(transl_color) / 3.0
+				if transl_weight < 0.5:
+					if avg_color < transl_weight:
+						backscatteringWeight = avg_color
+					else:
+						backscatteringWeight = transl_weight
+				elif transl_weight >= 0.5:
+					if avg_color < transl_weight and avg_color * 2 <= 1:
+						backscatteringWeight = avg_color * 2
+					elif transl_weight * 2 <= 1:
+						backscatteringWeight = transl_weight * 2
+					else:
+						backscatteringWeight = 1
+
+				if mapDoesNotExist(rsMaterial, "opacity_color"):
+					setProperty(rprMaterial, "backscatteringWeight", backscatteringWeight)
 				else:
-					setProperty(rprMaterial, "backscatteringWeight", transl_weight)
-			elif transl_weight >= 0.5:
-				if avg_color < transl_weight and avg_color * 2 <= 1:
-					setProperty(rprMaterial, "backscatteringWeight", avg_color * 2)
-				elif transl_weight * 2 <= 1:
-					setProperty(rprMaterial, "backscatteringWeight", transl_weight * 2)
+					arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+					setProperty(arithmetic, "operation", 2)
+					setProperty(arithmetic, "inputAX", backscatteringWeight)
+					copyProperty(arithmetic, rsMaterial, "inputB", "opacity_color")
+					connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
+
+			else:
+				if mapDoesNotExist(rsMaterial, "opacity_color"):
+					setProperty(rprMaterial, "backscatteringWeight", 0.5 * getProperty(rsMaterial, "transl_weight"))
 				else:
-					setProperty(rprMaterial, "backscatteringWeight", 1)
+					arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+					setProperty(arithmetic, "operation", 2)
+					copyProperty(arithmetic, rsMaterial, "inputAX", "transl_weight")
+					copyProperty(arithmetic, rsMaterial, "inputB", "opacity_color")
+					connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
 		else:
 			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
 			setProperty(arithmetic, "operation", 2)
 			copyProperty(arithmetic, rsMaterial, "inputAX", "transl_weight")
-			setProperty(arithmetic, "inputB", (0.5, 0.5, 0.5))
+			if mapDoesNotExist(rsMaterial, "opacity_color"):
+				setProperty(arithmetic, "inputB", (0.5, 0.5, 0.5))
+			else:
+				copyProperty(arithmetic, rsMaterial, "inputB", "opacity_color")
 			connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
 
 		if mapDoesNotExist(rsMaterial, "transl_color"):
@@ -1269,7 +1302,7 @@ def convertRedshiftMaterial(rsMaterial, source):
 			setProperty(arithmetic1, "inputB", tuple(remap_color))
 
 			arithmetic2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic2, "operation", 20)
+			setProperty(arithmetic2, "operation", 2)
 			setProperty(arithmetic2, "inputA", transl_color)
 			setProperty(arithmetic2, "inputB", (2.2, 2.2, 2.2))
 
@@ -1283,12 +1316,14 @@ def convertRedshiftMaterial(rsMaterial, source):
 			arithmetic1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
 			setProperty(arithmetic1, "operation", 0)
 			copyProperty(arithmetic1, rsMaterial, "inputA", "transl_color")
-			setProperty(arithmetic1, "inputB", (0.6, 0.6, 0.6))
+			copyProperty(arithmetic1, rprMaterial, "inputBX", "backscatteringWeight")
+			copyProperty(arithmetic1, rprMaterial, "inputBY", "backscatteringWeight")
+			copyProperty(arithmetic1, rprMaterial, "inputBZ", "backscatteringWeight")
 
 			arithmetic2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic2, "operation", 20)
+			setProperty(arithmetic2, "operation", 2)
 			copyProperty(arithmetic2, rsMaterial, "inputA", "transl_color")
-			setProperty(arithmetic2, "inputB", (2.2, 2.2, 2.2))
+			setProperty(arithmetic2, "inputB", (1.5, 1.5, 1.5))
 
 			arithmetic3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
 			setProperty(arithmetic3, "operation", 2)
