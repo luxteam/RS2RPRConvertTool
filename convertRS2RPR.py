@@ -1094,24 +1094,20 @@ def convertRedshiftMaterial(rsMaterial, source):
 
 	elif refl_fr_mode == 2:
 
-		try:
-			blend_value = cmds.shadingNode("RPRBlendValue", asUtility=True)
-			connectProperty(blend_value, "out", rprMaterial, "reflectColor")
+		blend_value = cmds.shadingNode("RPRBlendValue", asUtility=True)
+		connectProperty(blend_value, "out", rprMaterial, "reflectColor")
 
-			# blend color from diffuse and reflectivity to reflect color
-			# no_rpr_analog
+		# blend color from diffuse and reflectivity to reflect color
+		# no_rpr_analog
 
-			copyProperty(blend_value, rsMaterial, "inputA", "refl_reflectivity")
-			copyProperty(blend_value, rsMaterial, "inputB", "diffuse_color")
-			copyProperty(blend_value, rsMaterial, "weight", "refl_metalness")
+		copyProperty(blend_value, rsMaterial, "inputA", "refl_reflectivity")
+		copyProperty(blend_value, rsMaterial, "inputB", "diffuse_color")
+		copyProperty(blend_value, rsMaterial, "weight", "refl_metalness")
 
-			metalness = getProperty(rsMaterial, "refl_metalness")
-			if metalness > 0:
-				setProperty(rprMaterial, "reflectMetalMaterial", 1)
-				copyProperty(rprMaterial, rsMaterial, "reflectMetalness", "refl_metalness")
-		except Exception as ex:
-			print(ex)
-			print("Error while metall fresnel mode conversion")
+		metalness = getProperty(rsMaterial, "refl_metalness")
+		if metalness > 0:
+			setProperty(rprMaterial, "reflectMetalMaterial", 1)
+			copyProperty(rprMaterial, rsMaterial, "reflectMetalness", "refl_metalness")
 
 	# no_rpr_analog
 	elif refl_fr_mode == 1:
@@ -1250,12 +1246,12 @@ def convertRedshiftMaterial(rsMaterial, source):
 				transl_weight = getProperty(rsMaterial, "transl_weight")
 				transl_color = getProperty(rsMaterial, "transl_color")
 				avg_color = sum(transl_color) / 3.0
-				if transl_weight < 0.5:
+				if transl_weight <= 0.5:
 					if avg_color < transl_weight:
 						backscatteringWeight = avg_color
 					else:
 						backscatteringWeight = transl_weight
-				elif transl_weight >= 0.5:
+				elif transl_weight > 0.5:
 					if avg_color < transl_weight and avg_color * 2 <= 1:
 						backscatteringWeight = avg_color * 2
 					elif transl_weight * 2 <= 1:
