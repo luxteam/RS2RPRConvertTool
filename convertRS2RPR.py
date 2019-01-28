@@ -716,22 +716,37 @@ def convertRedshiftArchitectural(rsMaterial, source):
 	copyProperty(rprMaterial, rsMaterial, "diffuseColor", "diffuse") 
 	copyProperty(rprMaterial, rsMaterial, "diffuseWeight", "diffuse_weight")
 	copyProperty(rprMaterial, rsMaterial, "diffuseRoughness", "diffuse_roughness")
-
-	# translucency conversion
-	translucency_enable = getProperty(rsMaterial, "refr_translucency")
-	if translucency_enable:
-		setProperty(rprMaterial, "separateBackscatterColor", 1)
-		copyProperty(rprMaterial, rsMaterial, "backscatteringColor", "refr_trans_color")
-		copyProperty(rprMaterial, rsMaterial, "backscatteringWeight", "refr_trans_weight")
 	
-	# primary reflection
+	# primary reflection (reflection)
 	copyProperty(rprMaterial, rsMaterial, "reflectColor", "refl_color") 
 	copyProperty(rprMaterial, rsMaterial, "reflectWeight", "reflectivity")
-	copyProperty(rprMaterial, rsMaterial, "reflectIOR", "brdf_fresnel_ior")
+
+	if getProperty(rsMaterial, "brdf_fresnel"):
+		ior = getProperty(rsMaterial, "brdf_fresnel_ior")
+		if ior > 10:
+			setProperty(rprMaterial, "reflectIOR", 10)
+		else:
+			setProperty(rprMaterial, "reflectIOR", ior)
+	else:
+		refl = getProperty(rsMaterial, "brdf_0_degree_refl")
+		ior = -1 * (refl + 1 + 2 * math.sqrt(refl) / (refl - 1))
+		if ior > 10:
+			setProperty(rprMaterial, "reflectIOR", 10)
+		else:
+			setProperty(rprMaterial, "reflectIOR", ior)
 
 	if mapDoesNotExist(rsMaterial, "refl_gloss"):  
 		gloss = 1 - getProperty(rsMaterial, "refl_gloss")
 		setProperty(rprMaterial, "reflectRoughness", gloss)
+	else:
+		if objectType(cmds.listConnections(rsMaterial, "refl_gloss")[0]) == "reverse":
+			copyProperty(rprMaterial, rsMaterial, "refl_gloss", "reflectRoughness")
+		else:
+			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic, "operation", 1)
+			setProperty(arithmetic, "inputA", (1, 1, 1))
+			copyProperty(arithmetic, rsMaterial, "inputBX", "refl_gloss")
+			connectProperty(arithmetic, "outX", rprMaterial, "reflectRoughness")
 
 	setProperty(rprMaterial, "reflectAnisotropy", getProperty(rsMaterial, "anisotropy") * 2)
 	copyProperty(rprMaterial, rsMaterial, "reflectAnisotropyRotation", "anisotropy_rotation")
@@ -756,9 +771,40 @@ def convertRedshiftArchitectural(rsMaterial, source):
 			setProperty(arithmetic, "operation", 20)
 			connectProperty(arithmetic, "out", rprMaterial, "reflectColor")
 
-	# sec reflection
+	# sec reflection (Coat)
 	copyProperty(rprMaterial, rsMaterial, "coatWeight", "refl_base") 
 	copyProperty(rprMaterial, rsMaterial, "coatColor", "refl_base_color")
+
+	if mapDoesNotExist(rsMaterial, "refl_base_gloss"):  
+		gloss = 1 - getProperty(rsMaterial, "refl_base_gloss")
+		setProperty(rprMaterial, "coatRoughness", gloss)
+	else:
+		if objectType(cmds.listConnections(rsMaterial, "refl_base_gloss")[0]) == "reverse":
+			copyProperty(rprMaterial, rsMaterial, "refl_base_gloss", "coatRoughness")
+		else:
+			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic, "operation", 1)
+			setProperty(arithmetic, "inputA", (1, 1, 1))
+			copyProperty(arithmetic, rsMaterial, "inputBX", "refl_base_gloss")
+			connectProperty(arithmetic, "outX", rprMaterial, "coatRoughness")
+
+	if getProperty(rsMaterial, "brdf_base_fresnel"):
+		if getProperty(rsMaterial, "brdf_base_fresnel_type"):
+			coat_ior = getProperty(rsMaterial, "brdf_base_fresnel_ior") + getProperty(rsMaterial, "brdf_base_extinction_coeff")
+		else:
+			coat_ior = getProperty(rsMaterial, "brdf_base_fresnel_ior")
+
+		if coat_ior > 10:
+			setProperty(rprMaterial, "coatIor", 10)
+		else:
+			setProperty(rprMaterial, "coatIor", coat_ior)
+	else:
+		refl = getProperty(rsMaterial, "brdf_base_0_degree_refl")
+		ior = -1 * (refl + 1 + 2 * math.sqrt(refl) / (refl - 1))
+		if ior > 10:
+			setProperty(rprMaterial, "coatIor", 10)
+		else:
+			setProperty(rprMaterial, "coatIor", ior)
 		
 	# refraction
 	copyProperty(rprMaterial, rsMaterial, "refractColor", "refr_color")
@@ -768,6 +814,15 @@ def convertRedshiftArchitectural(rsMaterial, source):
 	if mapDoesNotExist(rsMaterial, "refr_gloss"):   
 		gloss = 1 - getProperty(rsMaterial, "refr_gloss")
 		setProperty(rprMaterial, "refractRoughness", gloss)
+	else:
+		if objectType(cmds.listConnections(rsMaterial, "refr_gloss")[0]) == "reverse":
+			copyProperty(rprMaterial, rsMaterial, "refr_gloss", "refractRoughness")
+		else:
+			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic, "operation", 1)
+			setProperty(arithmetic, "inputA", (1, 1, 1))
+			copyProperty(arithmetic, rsMaterial, "inputBX", "refr_gloss")
+			connectProperty(arithmetic, "outX", rprMaterial, "refractRoughness")
 			
 	fog_enable = getProperty(rsMaterial, "refr_falloff_on")
 	if fog_enable:
@@ -825,6 +880,96 @@ def convertRedshiftArchitectural(rsMaterial, source):
 			connectProperty(ao, "output", emissive_arithmetic, "inputA")
 			copyProperty(emissive_arithmetic, rsMaterial, "inputB", "additional_color")
 			connectProperty(emissive_arithmetic, "out", rprMaterial, "emissiveColor")
+
+	if getProperty(rsMaterial, "refr_translucency"):
+		setProperty(rprMaterial, "separateBackscatterColor", 1)
+
+		if mapDoesNotExist(rsMaterial, "refr_trans_weight"):
+			if mapDoesNotExist(rsMaterial, "refr_trans_color"):
+				transl_weight = getProperty(rsMaterial, "refr_trans_weight")
+				transl_color = getProperty(rsMaterial, "refr_trans_color")
+				avg_color = sum(transl_color) / 3.0
+				if transl_weight <= 0.5:
+					if avg_color < transl_weight:
+						backscatteringWeight = avg_color
+					else:
+						backscatteringWeight = transl_weight
+				elif transl_weight > 0.5:
+					if avg_color < transl_weight and avg_color * 2 <= 1:
+						backscatteringWeight = avg_color * 2
+					elif transl_weight * 2 <= 1:
+						backscatteringWeight = transl_weight * 2
+					else:
+						backscatteringWeight = 1
+
+				if mapDoesNotExist(rsMaterial, "opacity_color"):
+					setProperty(rprMaterial, "backscatteringWeight", backscatteringWeight)
+				else:
+					arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+					setProperty(arithmetic, "operation", 2)
+					setProperty(arithmetic, "inputAX", backscatteringWeight)
+					copyProperty(arithmetic, rsMaterial, "inputB", "opacity_color")
+					connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
+
+			else:
+				if mapDoesNotExist(rsMaterial, "opacity_color"):
+					setProperty(rprMaterial, "backscatteringWeight", 0.5 * getProperty(rsMaterial, "refr_trans_weight"))
+				else:
+					arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+					setProperty(arithmetic, "operation", 2)
+					copyProperty(arithmetic, rsMaterial, "inputAX", "refr_trans_weight")
+					copyProperty(arithmetic, rsMaterial, "inputB", "opacity_color")
+					connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
+		else:
+			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic, "operation", 2)
+			copyProperty(arithmetic, rsMaterial, "inputAX", "refr_trans_weight")
+			if mapDoesNotExist(rsMaterial, "opacity_color"):
+				setProperty(arithmetic, "inputB", (0.5, 0.5, 0.5))
+			else:
+				copyProperty(arithmetic, rsMaterial, "inputB", "opacity_color")
+			connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
+
+		if mapDoesNotExist(rsMaterial, "refr_trans_color"):
+			transl_color = getProperty(rsMaterial, "refr_trans_color")
+			arithmetic1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic1, "operation", 0)
+			setProperty(arithmetic1, "inputA", transl_color)
+			remap_color = []
+			for i in range(len(transl_color)):
+				remap_color.append(remap_value(transl_color[i], 1.0, 0.0, 0.0, 0.7))
+			setProperty(arithmetic1, "inputB", tuple(remap_color))
+
+			arithmetic2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic2, "operation", 2)
+			setProperty(arithmetic2, "inputA", transl_color)
+			setProperty(arithmetic2, "inputB", (2.2, 2.2, 2.2))
+
+			arithmetic3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic3, "operation", 2)
+			connectProperty(arithmetic1, "out", arithmetic3, "inputA")
+			connectProperty(arithmetic2, "out", arithmetic3, "inputB")
+
+			connectProperty(arithmetic3, "out", rprMaterial, "backscatteringColor")
+		else:
+			arithmetic1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic1, "operation", 0)
+			copyProperty(arithmetic1, rsMaterial, "inputA", "refr_trans_color")
+			copyProperty(arithmetic1, rprMaterial, "inputBX", "backscatteringWeight")
+			copyProperty(arithmetic1, rprMaterial, "inputBY", "backscatteringWeight")
+			copyProperty(arithmetic1, rprMaterial, "inputBZ", "backscatteringWeight")
+
+			arithmetic2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic2, "operation", 2)
+			copyProperty(arithmetic2, rsMaterial, "inputA", "refr_trans_color")
+			setProperty(arithmetic2, "inputB", (1.5, 1.5, 1.5))
+
+			arithmetic3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic3, "operation", 2)
+			connectProperty(arithmetic1, "out", arithmetic3, "inputA")
+			connectProperty(arithmetic2, "out", arithmetic3, "inputB")
+
+			connectProperty(arithmetic3, "out", rprMaterial, "backscatteringColor")
 
 	opacity = getProperty(rsMaterial, "cutout_opacity")
 	transparency = getProperty(rsMaterial, "transparency")
