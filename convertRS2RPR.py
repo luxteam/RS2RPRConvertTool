@@ -1720,13 +1720,6 @@ def convertRedshiftPhysicalLight(rs_light):
 	}
 	setProperty(rprLightShape, "lightType", light_type_map[lightType])
 	
-	color_mode_map = {
-		0:0, # color
-		1:1, # temperature
-		2:1  # temperature and color #no_rpr_analog
-	}
-	setProperty(rprLightShape, "colorMode", color_mode_map[getProperty(rs_light, "colorMode")])
-
 	areaShape = getProperty(rs_light, "areaShape")
 	if lightType == 0: #area
 		area_shape_map = {
@@ -1894,6 +1887,13 @@ def convertRedshiftPhysicalLight(rs_light):
 
 	copyProperty(rprLightShape, rs_light, "colorPicker", "color")
 	copyProperty(rprLightShape, rs_light, "temperature", "temperature")
+
+	color_mode = getProperty(rs_light, "colorMode")
+	if color_mode == (0, 2):
+		setProperty(rprLightShape, "colorMode", 0)
+	else:
+		setProperty(rprLightShape, "colorMode", 1)
+		mel.eval("onTemperatureChanged(\"{}\")".format(rprLightShape))
 
 	# Logging to file
 	end_log(rs_light)  
