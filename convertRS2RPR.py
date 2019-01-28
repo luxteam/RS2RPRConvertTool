@@ -64,7 +64,8 @@ def write_converted_property_log(rpr_name, rs_name, rpr_attr, rs_attr):
 		with open(file_path, 'a') as f:
 			f.write(u"    property {}.{} is converted to {}.{}   \r\n".format(rs_name, rs_attr, rpr_name, rpr_attr).encode('utf-8'))
 	except Exception as ex:
-		print("Error writing conversion logs. Scene is not saved")
+		pass
+		#print("Error writing conversion logs. Scene is not saved")
 
 def write_own_property_log(text):
 
@@ -73,7 +74,8 @@ def write_own_property_log(text):
 		with open(file_path, 'a') as f:
 			f.write("    {}   \r\n".format(text))
 	except Exception as ex:
-		print("Error writing logs. Scene is not saved")
+		pass
+		#print("Error writing logs. Scene is not saved")
 
 def start_log(rs, rpr):
 
@@ -88,7 +90,8 @@ def start_log(rs, rpr):
 		with open(file_path, 'a') as f:
 			f.write(text)
 	except Exception as ex:
-		print("Error writing start log. Scene is not saved")
+		pass
+		#print("Error writing start log. Scene is not saved")
 
 
 def end_log(rs):
@@ -100,7 +103,8 @@ def end_log(rs):
 		with open(file_path, 'a') as f:
 			f.write(text)
 	except Exception as ex:
-		print("Error writing end logs. Scene is not saved")
+		pass
+		#print("Error writing end logs. Scene is not saved")
 
 # additional fucntions
 
@@ -626,17 +630,84 @@ def convertRedshiftBumpBlender(rs, source):
 	return rpr	
 
 
+# standart utilities
+def convertStandartNode(rsMaterial, source):
+
+	try:
+		for attr in cmds.listAttr(rsMaterial):
+			connection = cmds.listConnections(rsMaterial + "." + attr)
+			if connection:
+				if cmds.objectType(connection[0]) not in ("materialInfo", "defaultShaderList", "shadingEngine") and source != attr:
+					obj, channel = cmds.connectionInfo(rsMaterial + "." + attr, sourceFromDestination=True).split('.')
+					source_name, source_attr = convertRSMaterial(obj, channel).split('.')
+					connectProperty(source_name, source_attr, rsMaterial, attr)
+	except Exception as ex:
+		print(ex)
+
+	return rsMaterial + "." + source
+
+
+# unsupported utilities
+def convertUnsupportedNode(rsMaterial, source):
+
+	if cmds.objExists(rsMaterial + "_UNSUPPORTED_NODE"):
+		rpr = rsMaterial + "_UNSUPPORTED_NODE"
+	else:
+		rpr = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		rpr = cmds.rename(rpr, rsMaterial + "_UNSUPPORTED_NODE")
+
+	# Logging to file
+	start_log(rsMaterial, rpr)
+
+	# 2 connection save
+	try:
+		setProperty(rpr, "operation", 0)
+		unsupported_connections = 0
+		for attr in cmds.listAttr(rsMaterial):
+			connection = cmds.listConnections(rsMaterial + "." + attr)
+			if connection:
+				if cmds.objectType(connection[0]) not in ("materialInfo", "defaultShaderList", "shadingEngine") and source != attr:
+					if unsupported_connections < 2:
+						obj, channel = cmds.connectionInfo(rsMaterial + "." + attr, sourceFromDestination=True).split('.')
+						source_name, source_attr = convertRSMaterial(obj, channel).split('.')
+						valueType = type(getProperty(rsMaterial, attr))
+						if valueType == tuple:
+							if unsupported_connections < 1:
+								connectProperty(source_name, source_attr, rpr, "inputA")
+							else:
+								connectProperty(source_name, source_attr, rpr, "inputB")
+						else:
+							if unsupported_connections < 1:
+								connectProperty(source_name, source_attr, rpr, "inputAX")
+							else:
+								connectProperty(source_name, source_attr, rpr, "inputBX")
+						unsupported_connections += 1
+	except Exception as ex:
+		print(ex)
+
+	# Logging to file
+	end_log(rsMaterial)
+
+	sourceType = type(getProperty(rsMaterial, source))
+	if sourceType == tuple:
+		rpr += ".out"
+	else:
+		rpr += ".outX"
+
+	return rpr
+
+
 # Create default uber material for unsupported material
 def convertUnsupportedMaterial(rsMaterial, source):
 
 	assigned = checkAssign(rsMaterial)
 	# Check material exist
-	if cmds.objExists(rsMaterial + "_rpr"):
-		rprMaterial = rsMaterial + "_rpr"
+	if cmds.objExists(rsMaterial + "_UNSUPPORTED_MATERIAL"):
+		rprMaterial = rsMaterial + "_UNSUPPORTED_MATERIAL"
 	else:
 		# Creating new Uber material
 		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
-		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_UNSUPPORTED_MATERIAL"))
 
 		# Check shading engine in rsMaterial
 		if assigned:
@@ -2005,10 +2076,10 @@ def convertRSMaterial(rsMaterial, source):
 	if rs_type in conversion_func:
 		rpr = conversion_func[rs_type](rsMaterial, source)
 	else:
-		if source:
-			rpr = rsMaterial + "." + source
+		if isRedshiftType(rsMaterial):
+			rpr = convertUnsupportedNode(rsMaterial, source)
 		else:
-			rpr = ""
+			rpr = convertStandartNode(rsMaterial, source)
 
 	return rpr
 
@@ -2029,7 +2100,7 @@ def convertLight(light):
 	conversion_func[rs_type](light)
 
 
-def searchRedshiftType(obj):
+def isRedshiftType(obj):
 
 	if cmds.objExists(obj):
 		objType = cmds.objectType(obj)
@@ -2042,7 +2113,7 @@ def cleanScene():
 
 	listMaterials= cmds.ls(materials=True)
 	for material in listMaterials:
-		if searchRedshiftType(material):
+		if isRedshiftType(material):
 			shEng = cmds.listConnections(material, type="shadingEngine")
 			try:
 				cmds.delete(shEng[0])
@@ -2061,7 +2132,7 @@ def cleanScene():
 
 	listObjects = cmds.ls(l=True)
 	for obj in listObjects:
-		if searchRedshiftType(object):
+		if isRedshiftType(object):
 			try:
 				cmds.delete(obj)
 			except Exception as ex:
@@ -2083,7 +2154,7 @@ def remap_value(value, maxInput, minInput, maxOutput, minOutput):
 
 def checkAssign(material):
 
-	if searchRedshiftType(material):
+	if isRedshiftType(material):
 		materialSG = cmds.listConnections(material, type="shadingEngine")
 		if materialSG:
 			cmds.hyperShade(objects=material)
