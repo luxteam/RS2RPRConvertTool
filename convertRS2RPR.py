@@ -733,7 +733,7 @@ def convertRedshiftArchitectural(rsMaterial, source):
 		gloss = 1 - getProperty(rsMaterial, "refl_gloss")
 		setProperty(rprMaterial, "reflectRoughness", gloss)
 
-	copyProperty(rprMaterial, rsMaterial, "reflectAnisotropy", "anisotropy") 
+	setProperty(rprMaterial, "reflectAnisotropy", getProperty(rsMaterial, "anisotropy") * 2)
 	copyProperty(rprMaterial, rsMaterial, "reflectAnisotropyRotation", "anisotropy_rotation")
 
 	setProperty(rprMaterial, "reflectMetalMaterial", getProperty(rsMaterial, "refl_is_metal"))
@@ -763,6 +763,7 @@ def convertRedshiftArchitectural(rsMaterial, source):
 	# refraction
 	copyProperty(rprMaterial, rsMaterial, "refractColor", "refr_color")
 	copyProperty(rprMaterial, rsMaterial, "refractWeight", "transparency")
+	copyProperty(rprMaterial, rsMaterial, "refractThinSurface", "thin_walled")
 
 	if mapDoesNotExist(rsMaterial, "refr_gloss"):   
 		gloss = 1 - getProperty(rsMaterial, "refr_gloss")
@@ -784,17 +785,78 @@ def convertRedshiftArchitectural(rsMaterial, source):
 	copyProperty(rprMaterial, rsMaterial, "emissiveColor", "additional_color")
 	copyProperty(rprMaterial, rsMaterial, "emissiveWeight", "incandescent_scale")
 
-	if getProperty(rsMaterial, "cutout_opacity") != (1, 1, 1):
+	if getProperty(rsMaterial, "ao_on"):
+		ao = cmds.shadingNode("RPRAmbientOcclusion", asUtility=True)
+		copyProperty(ao, rsMaterial, "occludedColor", "ao_dark")
+		copyProperty(ao, rsMaterial, "unoccludedColor", "ao_ambient")
+		if getProperty(rsMaterial, "ao_invert"):
+			setProperty(ao, "side", 1)
+		else:
+			setProperty(ao, "side", 0)
+		if getProperty(rsMaterial, "ao_distance"):
+			copyProperty(ao, rsMaterial, "radius", "ao_distance")
+
+		mode = getProperty(rsMaterial, "ao_combineMode")
+		# multiply is 2 in rpr (1 in rs)
+		if mode:
+			mode += 1
+
+		diffuse_arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(diffuse_arithmetic, "operation", mode)
+		connectProperty(ao, "output", diffuse_arithmetic, "inputA")
+		copyProperty(diffuse_arithmetic, rsMaterial, "inputB", "diffuse")
+		connectProperty(diffuse_arithmetic, "out", rprMaterial, "diffuseColor")
+
+		coat_arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(coat_arithmetic, "operation", mode)
+		connectProperty(ao, "output", coat_arithmetic, "inputA")
+		copyProperty(coat_arithmetic, rsMaterial, "inputB", "refl_base_color")
+		connectProperty(coat_arithmetic, "out", rprMaterial, "coatColor")
+
+		reflect_arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(reflect_arithmetic, "operation", mode)
+		connectProperty(ao, "output", reflect_arithmetic, "inputA")
+		copyProperty(reflect_arithmetic, rsMaterial, "inputB", "refl_color")
+		connectProperty(reflect_arithmetic, "out", rprMaterial, "reflectColor")
+
+		if getProperty(rsMaterial, "ao_applyToIncandescence"):
+			emissive_arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(emissive_arithmetic, "operation", mode)
+			connectProperty(ao, "output", emissive_arithmetic, "inputA")
+			copyProperty(emissive_arithmetic, rsMaterial, "inputB", "additional_color")
+			connectProperty(emissive_arithmetic, "out", rprMaterial, "emissiveColor")
+
+	opacity = getProperty(rsMaterial, "cutout_opacity")
+	transparency = getProperty(rsMaterial, "transparency")
+	if not opacity and transparency:
+		arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(arithmetic, "operation", 2)
+		copyProperty(arithmetic, rsMaterial, "inputAX", "transparency")
 		if mapDoesNotExist(rsMaterial, "cutout_opacity"):
-			transparency = 1 - max(getProperty(rsMaterial, "cutout_opacity"))
+			reverse_opacity = 1 - getProperty(rsMaterial, "cutout_opacity")
+			setProperty(arithmetic, "inputBX", reverse_opacity)
+		else:
+			opacity_arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(opacity_arithmetic, "operation", 1)
+			setProperty(opacity_arithmetic, "inputA", (1, 1, 1))
+			copyProperty(opacity_arithmetic, rsMaterial, "inputBX", "cutout_opacity")
+			connectProperty(opacity_arithmetic, "outX", arithmetic, "inputBX")
+		connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
+		setProperty(rprMaterial, "transparencyEnable", 1)
+	elif not opacity:
+		if mapDoesNotExist(rsMaterial, "cutout_opacity"):
+			transparency = 1 - getProperty(rsMaterial, "cutout_opacity")
 			setProperty(rprMaterial, "transparencyLevel", transparency)
 		else:
 			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
 			setProperty(arithmetic, "operation", 1)
 			setProperty(arithmetic, "inputA", (1, 1, 1))
-			copyProperty(arithmetic, rsMaterial, "inputB", "cutout_opacity")
+			copyProperty(arithmetic, rsMaterial, "inputBX", "cutout_opacity")
 			connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
 		setProperty(rprMaterial, "transparencyEnable", 1)
+	elif transparency:
+		setProperty(rprMaterial, "transparencyEnable", 1)
+		copyProperty(rprMaterial, rsMaterial, "transparencyLevel", "transparency")
 
 	bumpConnections = cmds.listConnections(rsMaterial + ".bump_input")
 	if bumpConnections:
@@ -953,13 +1015,13 @@ def convertRedshiftIncandescent(rsMaterial, source):
 
 	if getProperty(rsMaterial, "alpha") != (1, 1, 1):
 		if mapDoesNotExist(rsMaterial, "alpha"):
-			transparency = 1 - max(getProperty(rsMaterial, "alpha"))
+			transparency = 1 - getProperty(rsMaterial, "alpha")
 			setProperty(rprMaterial, "transparencyLevel", transparency)
 		else:
 			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
 			setProperty(arithmetic, "operation", 1)
 			setProperty(arithmetic, "inputA", (1, 1, 1))
-			copyProperty(arithmetic, rsMaterial, "inputB", "alpha")
+			copyProperty(arithmetic, rsMaterial, "inputBX", "alpha")
 			connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
 		setProperty(rprMaterial, "transparencyEnable", 1)
 
