@@ -46,6 +46,11 @@ v.2.14 - Fixed issue with group of lights
 		rsNoise node support
 		rsSprite material support
 		Improve rsMaterial Translucency conversion
+v.2.15 - Improve normal map conversion in rsMaterial and rsArchitectural
+		Improvements of translucency conversion in rsMaterial
+		Fixed bug with unsupported nodes conversion
+		Fixed bug with temperature in RPRPhysical lights
+		Improve rsArchitectural conversion
 
 '''
 
