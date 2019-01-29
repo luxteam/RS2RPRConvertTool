@@ -300,7 +300,6 @@ def convertmultiplyDivide(rs, source):
 	return rpr
 
 
-# re-convert is not fully supported for this node (only scale field)
 def convertRedshiftNoise(rs, source):
 
 	noiseType = getProperty(rs, "noise_type")
@@ -677,11 +676,12 @@ def convertUnsupportedMaterial(rsMaterial, source):
 		cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
 		connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
 
+	# Logging to file
+	start_log(rsMaterial, rprMaterial)
+
 	# set green color
 	setProperty(rprMaterial, "diffuseColor", (0, 1, 0))
 
-	# Logging to file
-	start_log(rsMaterial, rprMaterial)
 	end_log(rsMaterial)
 
 	if not assigned:
@@ -844,47 +844,6 @@ def convertRedshiftArchitectural(rsMaterial, source):
 	# emissive
 	copyProperty(rprMaterial, rsMaterial, "emissiveColor", "additional_color")
 	copyProperty(rprMaterial, rsMaterial, "emissiveWeight", "incandescent_scale")
-
-	if getProperty(rsMaterial, "ao_on"):
-		ao = cmds.shadingNode("RPRAmbientOcclusion", asUtility=True)
-		copyProperty(ao, rsMaterial, "occludedColor", "ao_dark")
-		copyProperty(ao, rsMaterial, "unoccludedColor", "ao_ambient")
-		if getProperty(rsMaterial, "ao_invert"):
-			setProperty(ao, "side", 1)
-		else:
-			setProperty(ao, "side", 0)
-		if getProperty(rsMaterial, "ao_distance"):
-			copyProperty(ao, rsMaterial, "radius", "ao_distance")
-
-		mode = getProperty(rsMaterial, "ao_combineMode")
-		# multiply is 2 in rpr (1 in rs)
-		if mode:
-			mode += 1
-
-		diffuse_arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(diffuse_arithmetic, "operation", mode)
-		connectProperty(ao, "output", diffuse_arithmetic, "inputA")
-		copyProperty(diffuse_arithmetic, rsMaterial, "inputB", "diffuse")
-		connectProperty(diffuse_arithmetic, "out", rprMaterial, "diffuseColor")
-
-		coat_arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(coat_arithmetic, "operation", mode)
-		connectProperty(ao, "output", coat_arithmetic, "inputA")
-		copyProperty(coat_arithmetic, rsMaterial, "inputB", "refl_base_color")
-		connectProperty(coat_arithmetic, "out", rprMaterial, "coatColor")
-
-		reflect_arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(reflect_arithmetic, "operation", mode)
-		connectProperty(ao, "output", reflect_arithmetic, "inputA")
-		copyProperty(reflect_arithmetic, rsMaterial, "inputB", "refl_color")
-		connectProperty(reflect_arithmetic, "out", rprMaterial, "reflectColor")
-
-		if getProperty(rsMaterial, "ao_applyToIncandescence"):
-			emissive_arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(emissive_arithmetic, "operation", mode)
-			connectProperty(ao, "output", emissive_arithmetic, "inputA")
-			copyProperty(emissive_arithmetic, rsMaterial, "inputB", "additional_color")
-			connectProperty(emissive_arithmetic, "out", rprMaterial, "emissiveColor")
 
 	if getProperty(rsMaterial, "refr_translucency"):
 		setProperty(rprMaterial, "separateBackscatterColor", 1)
