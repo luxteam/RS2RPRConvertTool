@@ -1939,7 +1939,7 @@ def convertRedshiftPhysicalLight(rs_light):
 	copyProperty(rprLightShape, rs_light, "temperature", "temperature")
 
 	color_mode = getProperty(rs_light, "colorMode")
-	if color_mode == (0, 2):
+	if color_mode in (0, 2):
 		setProperty(rprLightShape, "colorMode", 0)
 	else:
 		setProperty(rprLightShape, "colorMode", 1)
@@ -2055,27 +2055,23 @@ def convertRedshiftIESLight(rs_light):
 
 def convertRedshiftVolumeScattering(rsVolumeScattering):
 
-	# Check material exist
-	if cmds.objExists(rsVolumeScattering + "_rpr"):
-		rprMaterial = rsVolumeScattering + "_rpr"
-	else:
-		# Creating new Volume material
-		rprMaterial = cmds.shadingNode("RPRVolumeMaterial", asShader=True)
-		rprMaterial = cmds.rename(rprMaterial, (rsVolumeScattering + "_rpr"))
-		
-		sg = rprMaterial + "SG"
-		cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-		connectProperty(rprMaterial, "outColor", sg, "volumeShader")
+	# Creating new Volume material
+	rprMaterial = cmds.shadingNode("RPRVolumeMaterial", asShader=True)
+	rprMaterial = cmds.rename(rprMaterial, (rsVolumeScattering + "_rpr"))
+	
+	sg = rprMaterial + "SG"
+	cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
+	connectProperty(rprMaterial, "outColor", sg, "volumeShader")
 
-		# create sphere
-		cmds.polySphere(n="Volume")
-		setProperty("Volume", "scaleX", 999)
-		setProperty("Volume", "scaleY", 999)
-		setProperty("Volume", "scaleZ", 999)
+	# create sphere
+	cmds.polySphere(n="Volume")
+	setProperty("Volume", "scaleX", 999)
+	setProperty("Volume", "scaleY", 999)
+	setProperty("Volume", "scaleZ", 999)
 
-		# assign material
-		cmds.select("Volume")
-		cmds.sets(e=True, forceElement=sg)
+	# assign material
+	cmds.select("Volume")
+	cmds.sets(e=True, forceElement=sg)
 
 	# Logging to file 
 	start_log(rsVolumeScattering, rprMaterial) 
@@ -2315,7 +2311,6 @@ def convertScene():
 			setProperty("RadeonProRenderGlobals", "aovBackground", 1)
 			setProperty("RadeonProRenderGlobals", "aovShadowCatcher", 1)
 		except Exception as ex:
-
 			traceback.print_exc()
 
 
