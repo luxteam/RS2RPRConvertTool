@@ -1110,7 +1110,6 @@ def convertRedshiftIncandescent(rsMaterial, source):
 
 	# Enable properties, which are default in RedShift
 	setProperty(rprMaterial, "diffuse", 0)
-	setProperty(rprMaterial, "transparencyEnable", 1)
 	defaultEnable(rprMaterial, rsMaterial, "emissive", "intensity")
 
 	# Logging to file
@@ -1118,21 +1117,22 @@ def convertRedshiftIncandescent(rsMaterial, source):
 
 	# Fields conversion
 	copyProperty(rprMaterial, rsMaterial, "emissiveIntensity", "intensity")
-	copyProperty(rprMaterial, rsMaterial, "transparencyLevel", "alpha")
 
 	setProperty(rprMaterial, "emissiveDoubleSided", getProperty(rsMaterial, "doublesided"))
 
-	if not getProperty(rsMaterial, "alpha"):
-		if mapDoesNotExist(rsMaterial, "alpha"):
+	if mapDoesNotExist(rsMaterial, "alpha"):
+		if getProperty(rsMaterial, "alpha") != 1:
 			transparency = 1 - getProperty(rsMaterial, "alpha")
 			setProperty(rprMaterial, "transparencyLevel", transparency)
-		else:
-			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic, "operation", 1)
-			setProperty(arithmetic, "inputA", (1, 1, 1))
-			copyProperty(arithmetic, rsMaterial, "inputBX", "alpha")
-			connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
+			setProperty(rprMaterial, "transparencyEnable", 1)
+	else:
+		arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(arithmetic, "operation", 1)
+		setProperty(arithmetic, "inputA", (1, 1, 1))
+		copyProperty(arithmetic, rsMaterial, "inputBX", "alpha")
+		connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
 		setProperty(rprMaterial, "transparencyEnable", 1)
+	
 
 	# converting temperature to emissive color
 	# no_rpr_analog
