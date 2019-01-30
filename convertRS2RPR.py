@@ -1117,6 +1117,7 @@ def convertRedshiftIncandescent(rsMaterial, source):
 
 	# Fields conversion
 	copyProperty(rprMaterial, rsMaterial, "emissiveIntensity", "intensity")
+	copyProperty(rprMaterial, rsMaterial, "emissiveWeight", "alpha")
 
 	setProperty(rprMaterial, "emissiveDoubleSided", getProperty(rsMaterial, "doublesided"))
 
