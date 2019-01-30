@@ -744,8 +744,8 @@ def convertRedshiftArchitectural(rsMaterial, source):
 		gloss = 1 - getProperty(rsMaterial, "refl_gloss")
 		setProperty(rprMaterial, "reflectRoughness", gloss)
 	else:
-		if cmds.objectType(cmds.listConnections(rsMaterial, "refl_gloss")[0]) == "reverse":
-			copyProperty(rprMaterial, rsMaterial, "refl_gloss", "reflectRoughness")
+		if cmds.objectType(cmds.listConnections(rsMaterial + ".refl_gloss")[0]) == "reverse":
+			copyProperty(rprMaterial, rsMaterial, "reflectRoughness", "refl_gloss")
 		else:
 			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
 			setProperty(arithmetic, "operation", 1)
