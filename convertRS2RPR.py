@@ -866,32 +866,32 @@ def convertRedshiftArchitectural(rsMaterial, source):
 					else:
 						backscatteringWeight = 1
 
-				if mapDoesNotExist(rsMaterial, "opacity_color"):
+				if mapDoesNotExist(rsMaterial, "cutout_opacity"):
 					setProperty(rprMaterial, "backscatteringWeight", backscatteringWeight)
 				else:
 					arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
 					setProperty(arithmetic, "operation", 2)
 					setProperty(arithmetic, "inputAX", backscatteringWeight)
-					copyProperty(arithmetic, rsMaterial, "inputB", "opacity_color")
+					copyProperty(arithmetic, rsMaterial, "inputBX", "cutout_opacity")
 					connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
 
 			else:
-				if mapDoesNotExist(rsMaterial, "opacity_color"):
+				if mapDoesNotExist(rsMaterial, "cutout_opacity"):
 					setProperty(rprMaterial, "backscatteringWeight", 0.5 * getProperty(rsMaterial, "refr_trans_weight"))
 				else:
 					arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
 					setProperty(arithmetic, "operation", 2)
 					copyProperty(arithmetic, rsMaterial, "inputAX", "refr_trans_weight")
-					copyProperty(arithmetic, rsMaterial, "inputB", "opacity_color")
+					copyProperty(arithmetic, rsMaterial, "inputBX", "cutout_opacity")
 					connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
 		else:
 			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
 			setProperty(arithmetic, "operation", 2)
 			copyProperty(arithmetic, rsMaterial, "inputAX", "refr_trans_weight")
-			if mapDoesNotExist(rsMaterial, "opacity_color"):
+			if mapDoesNotExist(rsMaterial, "cutout_opacity"):
 				setProperty(arithmetic, "inputB", (0.5, 0.5, 0.5))
 			else:
-				copyProperty(arithmetic, rsMaterial, "inputB", "opacity_color")
+				copyProperty(arithmetic, rsMaterial, "inputB", "cutout_opacity")
 			connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
 
 		if mapDoesNotExist(rsMaterial, "refr_trans_color"):
