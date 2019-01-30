@@ -744,7 +744,7 @@ def convertRedshiftArchitectural(rsMaterial, source):
 		gloss = 1 - getProperty(rsMaterial, "refl_gloss")
 		setProperty(rprMaterial, "reflectRoughness", gloss)
 	else:
-		if objectType(cmds.listConnections(rsMaterial, "refl_gloss")[0]) == "reverse":
+		if cmds.objectType(cmds.listConnections(rsMaterial, "refl_gloss")[0]) == "reverse":
 			copyProperty(rprMaterial, rsMaterial, "refl_gloss", "reflectRoughness")
 		else:
 			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
@@ -784,7 +784,7 @@ def convertRedshiftArchitectural(rsMaterial, source):
 		gloss = 1 - getProperty(rsMaterial, "refl_base_gloss")
 		setProperty(rprMaterial, "coatRoughness", gloss)
 	else:
-		if objectType(cmds.listConnections(rsMaterial, "refl_base_gloss")[0]) == "reverse":
+		if cmds.objectType(cmds.listConnections(rsMaterial, "refl_base_gloss")[0]) == "reverse":
 			copyProperty(rprMaterial, rsMaterial, "refl_base_gloss", "coatRoughness")
 		else:
 			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
@@ -820,7 +820,7 @@ def convertRedshiftArchitectural(rsMaterial, source):
 		gloss = 1 - getProperty(rsMaterial, "refr_gloss")
 		setProperty(rprMaterial, "refractRoughness", gloss)
 	else:
-		if objectType(cmds.listConnections(rsMaterial, "refr_gloss")[0]) == "reverse":
+		if cmds.objectType(cmds.listConnections(rsMaterial, "refr_gloss")[0]) == "reverse":
 			copyProperty(rprMaterial, rsMaterial, "refr_gloss", "refractRoughness")
 		else:
 			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
@@ -1122,7 +1122,7 @@ def convertRedshiftIncandescent(rsMaterial, source):
 
 	setProperty(rprMaterial, "emissiveDoubleSided", getProperty(rsMaterial, "doublesided"))
 
-	if getProperty(rsMaterial, "alpha") != (1, 1, 1):
+	if not getProperty(rsMaterial, "alpha"):
 		if mapDoesNotExist(rsMaterial, "alpha"):
 			transparency = 1 - getProperty(rsMaterial, "alpha")
 			setProperty(rprMaterial, "transparencyLevel", transparency)
@@ -1290,7 +1290,7 @@ def convertRedshiftMaterial(rsMaterial, source):
 
 			setProperty(rprMaterial, "reflectMetalMaterial", 1)
 			copyProperty(rprMaterial, rsMaterial, "reflectMetalness", "refl_metalness")
-			if getProperty(rprMaterial, "reflectMetalness") != 1:
+			if not getProperty(rprMaterial, "reflectMetalness"):
 				setProperty(rprMaterial, "reflectMetalness", 1)
 
 		else:
