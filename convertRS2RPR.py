@@ -834,6 +834,7 @@ def convertRedshiftArchitectural(rsMaterial, source):
 	copyProperty(rprMaterial, rsMaterial, "refractColor", "refr_color")
 	copyProperty(rprMaterial, rsMaterial, "refractWeight", "transparency")
 	copyProperty(rprMaterial, rsMaterial, "refractThinSurface", "thin_walled")
+	copyProperty(rprMaterial, rsMaterial, "refractIor", "refr_ior")
 
 	if mapDoesNotExist(rsMaterial, "refr_gloss"):   
 		gloss = 1 - getProperty(rsMaterial, "refr_gloss")
@@ -955,23 +956,7 @@ def convertRedshiftArchitectural(rsMaterial, source):
 			connectProperty(arithmetic3, "out", rprMaterial, "backscatteringColor")
 
 	opacity = getProperty(rsMaterial, "cutout_opacity")
-	transparency = getProperty(rsMaterial, "transparency")
-	if not opacity and transparency:
-		arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(arithmetic, "operation", 2)
-		copyProperty(arithmetic, rsMaterial, "inputAX", "transparency")
-		if mapDoesNotExist(rsMaterial, "cutout_opacity"):
-			reverse_opacity = 1 - getProperty(rsMaterial, "cutout_opacity")
-			setProperty(arithmetic, "inputBX", reverse_opacity)
-		else:
-			opacity_arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(opacity_arithmetic, "operation", 1)
-			setProperty(opacity_arithmetic, "inputA", (1, 1, 1))
-			copyProperty(opacity_arithmetic, rsMaterial, "inputBX", "cutout_opacity")
-			connectProperty(opacity_arithmetic, "outX", arithmetic, "inputBX")
-		connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
-		setProperty(rprMaterial, "transparencyEnable", 1)
-	elif not opacity:
+	if not opacity:
 		if mapDoesNotExist(rsMaterial, "cutout_opacity"):
 			transparency = 1 - getProperty(rsMaterial, "cutout_opacity")
 			setProperty(rprMaterial, "transparencyLevel", transparency)
@@ -982,9 +967,6 @@ def convertRedshiftArchitectural(rsMaterial, source):
 			copyProperty(arithmetic, rsMaterial, "inputBX", "cutout_opacity")
 			connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
 		setProperty(rprMaterial, "transparencyEnable", 1)
-	elif transparency:
-		setProperty(rprMaterial, "transparencyEnable", 1)
-		copyProperty(rprMaterial, rsMaterial, "transparencyLevel", "transparency")
 
 	bumpConnections = cmds.listConnections(rsMaterial + ".bump_input")
 	if bumpConnections:
