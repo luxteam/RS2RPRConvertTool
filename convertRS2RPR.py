@@ -503,7 +503,7 @@ def convertRedshiftBumpMap(rs, source):
 		rpr = cmds.shadingNode("RPRNormal", asUtility=True)
 	elif inputType == 2:
 		rpr = cmds.shadingNode("RPRNormal", asUtility=True)
-		write_own_property_log("Bump map conversion below is incorrect. You need conversion into Tangent Space.")
+		print(u"Bump map conversion ({}) is incorrect. You need conversion into Tangent Space.".format(rs).encode('utf-8'))
 
 	rpr = cmds.rename(rpr, rs + "_rpr")
 
@@ -568,32 +568,27 @@ def convertRedshiftColorLayer(rs, source):
 
 def convertRedshiftBumpBlender(rs, source):
 
-	rpr = cmds.shadingNode("RPRBump", asUtility=True)
-	rpr = cmds.rename(rpr, rs + "_rpr")
+	# no_rpr_analog
 
-	rpr_blend = cmds.shadingNode("RPRBlendMaterial", asShader=True)
-	connectProperty(rpr_blend, "outColor", rpr, "color")
-
-	rsBump0 = cmds.listConnections(rs + ".baseInput", type="RedshiftBumpMap")
-	if rsBump0:
-		valueInput0 = cmds.listConnections(rsBump0[0] + ".input")[0]
-		if valueInput0:
-			connectProperty(valueInput0, ".outColor", rpr_blend, "color0")
-
-	rsBump1 = cmds.listConnections(rs + ".bumpInput0", type="RedshiftBumpMap")
-	if rsBump1:
-		valueInput1 = cmds.listConnections(rsBump1[0] + ".input")[0]
-		if valueInput1:
-			connectProperty(valueInput1, "outColor", rpr_blend, "color1")
-
-	conversion_map = {
+	source_map = {
 		"outColor": "out",
 		"outColorR": "outR",
 		"outColorG": "outG",
 		"outColorB": "outB"
 	}
 
-	rpr += "." + conversion_map[source]
+	rsMap = cmds.listConnections(rs + ".baseInput")
+	if rsMap:
+		if cmds.objectType(rsMap[0]) in ("RedshiftBumpMap", "RedshiftNormalMap"):
+			rpr = convertRSMaterial(rsMap[0], source_map[source])
+	else:
+		rsBump = cmds.listConnections(rs, type="RedshiftBumpMap")
+		rsNormal = cmds.listConnections(rs, type="RedshiftNormalMap")
+		if rsBump:
+			rpr = convertRedshiftBumpMap(rsBump[0], source_map[source])
+		elif rsNormal:
+			rpr = convertRedshiftNormalMap(rsNormal[0], source_map[source])
+
 	return rpr	
 
 
