@@ -917,46 +917,23 @@ def convertRedshiftArchitectural(rsMaterial, source):
 				copyProperty(arithmetic, rsMaterial, "inputB", "cutout_opacity")
 			connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
 
-		if mapDoesNotExist(rsMaterial, "refr_trans_color"):
-			transl_color = getProperty(rsMaterial, "refr_trans_color")
-			arithmetic1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic1, "operation", 0)
-			setProperty(arithmetic1, "inputA", transl_color)
-			remap_color = []
-			for i in range(len(transl_color)):
-				remap_color.append(remap_value(transl_color[i], 1.0, 0.0, 0.0, 0.7))
-			setProperty(arithmetic1, "inputB", tuple(remap_color))
+		# trans color
+		arithmetic1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(arithmetic1, "operation", 2)
+		copyProperty(arithmetic1, rsMaterial, "inputA", "refr_trans_color")
+		setProperty(arithmetic1, "inputB", (2.2, 2.2, 2.2))
 
-			arithmetic2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic2, "operation", 2)
-			setProperty(arithmetic2, "inputA", transl_color)
-			setProperty(arithmetic2, "inputB", (2.2, 2.2, 2.2))
+		arithmetic2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(arithmetic2, "operation", 2)
+		copyProperty(arithmetic2, rsMaterial, "inputA", "diffuse")
+		setProperty(arithmetic2, "inputB", (2.2, 2.2, 2.2))
 
-			arithmetic3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic3, "operation", 2)
-			connectProperty(arithmetic1, "out", arithmetic3, "inputA")
-			connectProperty(arithmetic2, "out", arithmetic3, "inputB")
+		arithmetic3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(arithmetic3, "operation", 20)
+		connectProperty(arithmetic1, "out", arithmetic3, "inputA")
+		connectProperty(arithmetic2, "out", arithmetic3, "inputB")
 
-			connectProperty(arithmetic3, "out", rprMaterial, "backscatteringColor")
-		else:
-			arithmetic1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic1, "operation", 0)
-			copyProperty(arithmetic1, rsMaterial, "inputA", "refr_trans_color")
-			copyProperty(arithmetic1, rprMaterial, "inputBX", "backscatteringWeight")
-			copyProperty(arithmetic1, rprMaterial, "inputBY", "backscatteringWeight")
-			copyProperty(arithmetic1, rprMaterial, "inputBZ", "backscatteringWeight")
-
-			arithmetic2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic2, "operation", 2)
-			copyProperty(arithmetic2, rsMaterial, "inputA", "refr_trans_color")
-			setProperty(arithmetic2, "inputB", (1.5, 1.5, 1.5))
-
-			arithmetic3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic3, "operation", 2)
-			connectProperty(arithmetic1, "out", arithmetic3, "inputA")
-			connectProperty(arithmetic2, "out", arithmetic3, "inputB")
-
-			connectProperty(arithmetic3, "out", rprMaterial, "backscatteringColor")
+		connectProperty(arithmetic3, "out", rprMaterial, "backscatteringColor")
 
 	opacity = getProperty(rsMaterial, "cutout_opacity")
 	if not opacity:
