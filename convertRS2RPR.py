@@ -723,7 +723,19 @@ def convertRedshiftArchitectural(rsMaterial, source):
 	copyProperty(rprMaterial, rsMaterial, "diffuseRoughness", "diffuse_roughness")
 	
 	# primary reflection (reflection)
-	copyProperty(rprMaterial, rsMaterial, "reflectColor", "refl_color") 
+	if mapDoesNotExist(rsMaterial, "refl_color"):
+		reflectColor = []
+		for each in getProperty(rsMaterial, "refl_color"):
+			if each * 2 < 1:
+				reflectColor.append(each * 2)
+			else:
+				reflectColor.append(1)
+		setProperty(rprMaterial, "reflectColor", tuple(reflectColor))
+	else:
+		connection = cmds.listConnections(rsMaterial + ".refl_color", type="file")
+		if connection:
+			setProperty(connection[0], "colorSpace", "Raw")
+		copyProperty(rprMaterial, rsMaterial, "reflectColor", "refl_color")
 	copyProperty(rprMaterial, rsMaterial, "reflectWeight", "reflectivity")
 
 	if getProperty(rsMaterial, "brdf_fresnel"):
@@ -772,7 +784,19 @@ def convertRedshiftArchitectural(rsMaterial, source):
 
 			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
 			copyProperty(arithmetic, rsMaterial, "inputA", "diffuse")
-			copyProperty(arithmetic, rsMaterial, "inputB", "refl_color")
+			if mapDoesNotExist(rsMaterial, "refl_color"):
+				reflectColor = []
+				for each in getProperty(rsMaterial, "refl_color"):
+					if each * 2 < 1:
+						reflectColor.append(each * 2)
+					else:
+						reflectColor.append(1)
+				setProperty(arithmetic, "inputB", tuple(reflectColor))
+			else:
+				connection = cmds.listConnections(rsMaterial + ".refl_color", type="file")
+				if connection:
+					setProperty(connection[0], "colorSpace", "Raw")
+				copyProperty(arithmetic, rsMaterial, "inputB", "refl_color")
 			setProperty(arithmetic, "operation", 20)
 			connectProperty(arithmetic, "out", rprMaterial, "reflectColor")
 
@@ -1246,7 +1270,19 @@ def convertRedshiftMaterial(rsMaterial, source):
 
 	if refl_fr_mode == 3:
 		copyProperty(rprMaterial, rsMaterial, "reflectIOR", "refl_ior")
-		copyProperty(rprMaterial, rsMaterial, "reflectColor", "refl_color")
+		if mapDoesNotExist(rsMaterial, "refl_color"):
+			reflectColor = []
+			for each in getProperty(rsMaterial, "refl_color"):
+				if each * 2 < 1:
+					reflectColor.append(each * 2)
+				else:
+					reflectColor.append(1)
+			setProperty(rprMaterial, "reflectColor", tuple(reflectColor))
+		else:
+			connection = cmds.listConnections(rsMaterial + ".refl_color", type="file")
+			if connection:
+				setProperty(connection[0], "colorSpace", "Raw")
+			copyProperty(rprMaterial, rsMaterial, "reflectColor", "refl_color")
 
 	elif refl_fr_mode == 2:
 
@@ -1279,7 +1315,20 @@ def convertRedshiftMaterial(rsMaterial, source):
 		fresnel = cmds.shadingNode("RPRFresnel", asUtility=True)
 		connectProperty(fresnel, "out", blend_value, "weight")
 
-		copyProperty(arithmetic, rsMaterial, "inputA", "refl_color")
+		if mapDoesNotExist(rsMaterial, "refl_color"):
+			reflectColor = []
+			for each in getProperty(rsMaterial, "refl_color"):
+				if each * 2 < 1:
+					reflectColor.append(each * 2)
+				else:
+					reflectColor.append(1)
+			setProperty(arithmetic, "inputA", tuple(reflectColor))
+		else:
+			connection = cmds.listConnections(rsMaterial + ".refl_color", type="file")
+			if connection:
+				setProperty(connection[0], "colorSpace", "Raw")
+			copyProperty(arithmetic, rsMaterial, "inputA", "refl_color")
+
 		setProperty(arithmetic, "operation", 2)
 
 		setProperty(fresnel, "ior", 1.5)
@@ -1297,7 +1346,20 @@ def convertRedshiftMaterial(rsMaterial, source):
 		else:
 
 			copyProperty(blend_value, rsMaterial, "inputA", "refl_reflectivity")
-			copyProperty(blend_value, rsMaterial, "inputB", "refl_color")
+
+			if mapDoesNotExist(rsMaterial, "refl_color"):
+				reflectColor = []
+				for each in getProperty(rsMaterial, "refl_color"):
+					if each * 2 < 1:
+						reflectColor.append(each * 2)
+					else:
+						reflectColor.append(1)
+				setProperty(blend_value, "inputB", tuple(reflectColor))
+			else:
+				connection = cmds.listConnections(rsMaterial + ".refl_color", type="file")
+				if connection:
+					setProperty(connection[0], "colorSpace", "Raw")
+				copyProperty(blend_value, rsMaterial, "inputB", "refl_color")
 
 			max_refl = max(refl_reflectivity)
 			if max_refl == 1:
@@ -1317,7 +1379,19 @@ def convertRedshiftMaterial(rsMaterial, source):
 		# no_rpr_analog
 		# take one channel from advanced ior ti rpr ior
 		copyProperty(rprMaterial, rsMaterial, "reflectIOR", "refl_ior30")
-		copyProperty(rprMaterial, rsMaterial, "reflectColor", "refl_color")
+		if mapDoesNotExist(rsMaterial, "refl_color"):
+			reflectColor = []
+			for each in getProperty(rsMaterial, "refl_color"):
+				if each * 2 < 1:
+					reflectColor.append(each * 2)
+				else:
+					reflectColor.append(1)
+			setProperty(rprMaterial, "reflectColor", tuple(reflectColor))
+		else:
+			connection = cmds.listConnections(rsMaterial + ".refl_color", type="file")
+			if connection:
+				setProperty(connection[0], "colorSpace", "Raw")
+			copyProperty(rprMaterial, rsMaterial, "reflectColor", "refl_color")
 
 	copyProperty(rprMaterial, rsMaterial, "refractColor", "refr_color")
 	copyProperty(rprMaterial, rsMaterial, "refractWeight", "refr_weight")
@@ -1837,9 +1911,12 @@ def convertRedshiftPhysicalLight(rs_light):
 			setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure)
 	elif unitsType == 2: #luminance -> luminance
 		if lightType == 0: #area 
-			if areaShape in (0, 1, 2): # rectangle  disk sphere
+			if areaShape == 0: # rectangle  
 				setProperty(rprLightShape, "intensityUnits", 1)
-				setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 10000)
+				setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 6666.66)
+			elif areaShape in (1, 2): # disk sphere
+				setProperty(rprLightShape, "intensityUnits", 1)
+				setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 8333.33)
 			elif areaShape == 3: # cylinder
 				copyProperty(rprTransform, rsTransform, "scaleX", "scaleZ")
 				copyProperty(rprTransform, rsTransform, "scaleZ", "scaleX")
@@ -1887,9 +1964,13 @@ def convertRedshiftPhysicalLight(rs_light):
 			copyProperty(rprLightShape, rs_light, "luminousEfficacy", "lumensperwatt")
 	elif unitsType == 4: #radiance - > radiance
 		if lightType == 0: #area 
-			if areaShape in (0, 1, 2): # rectangle  disk sphere
+			if areaShape == 0: # rectangle
 				setProperty(rprLightShape, "intensityUnits", 3)
-				setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 15)
+				setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 10)
+				copyProperty(rprLightShape, rs_light, "luminousEfficacy", "lumensperwatt")
+			elif areaShape in (1, 2): # disk sphere
+				setProperty(rprLightShape, "intensityUnits", 3)
+				setProperty(rprLightShape, "lightIntensity", intensity *  2 ** exposure / 12.5)
 				copyProperty(rprLightShape, rs_light, "luminousEfficacy", "lumensperwatt")
 			elif areaShape == 3: # cylinder
 				copyProperty(rprTransform, rsTransform, "scaleX", "scaleZ")
@@ -2298,6 +2379,7 @@ def convertScene():
 	setProperty("RadeonProRenderGlobals", "completionCriteriaIterations", getProperty("redshiftOptions", "progressiveRenderingNumPasses") * 1.5)
 	setProperty("RadeonProRenderGlobals", "giClampIrradiance", 1)
 	setProperty("RadeonProRenderGlobals", "giClampIrradianceValue", 32)
+
 	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "maxDepthGlossy", "reflectionMaxTraceDepth")
 	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "maxDepthRefraction", "refractionMaxTraceDepth")
 	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "maxRayDepth", "combinedMaxTraceDepth")
@@ -2313,6 +2395,14 @@ def convertScene():
 			setProperty("RadeonProRenderGlobals", "aovShadowCatcher", 1)
 		except Exception as ex:
 			traceback.print_exc()
+
+	rsPhotographicExposure = cmds.ls(type="RedshiftPhotographicExposure")
+	if rsPhotographicExposure:
+		if getProperty(rsPhotographicExposure[0], "enable"):
+			setProperty("RadeonProRenderGlobals", "toneMappingType", 2)
+			setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearSensitivity", getProperty(rsPhotographicExposure[0], "filmSpeed") / 100)
+			setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure", 1 + getProperty(rsPhotographicExposure[0], "reinhardFactor"))
+			copyProperty("RadeonProRenderGlobals", rsPhotographicExposure[0], "toneMappingPhotolinearFstop", "fStop")
 
 
 def auto_launch():
