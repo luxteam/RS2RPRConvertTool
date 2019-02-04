@@ -51,6 +51,9 @@ v.2.15 - Improve normal map conversion in rsMaterial and rsArchitectural
 		Fixed bug with unsupported nodes conversion
 		Fixed bug with temperature in RPRPhysical lights
 		Improve rsArchitectural conversion
+v.2.16 - Improve rsArchitectural and rsMaterial conversion
+		Changed BumpBlender conversion 
+		Photoexposure conversion
 
 '''
 
