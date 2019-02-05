@@ -550,10 +550,10 @@ def convertRedshiftColorLayer(rs, source):
 		copyProperty(rpr, rs, "inputB", "layer1_color")
 
 		conversion_map = {
-		"outColor": "out",
-		"outColorR": "outR",
-		"outColorG": "outG",
-		"outColorB": "outB"
+			"outColor": "out",
+			"outColorR": "outR",
+			"outColorG": "outG",
+			"outColorB": "outB"
 		}
 		source = conversion_map[source]
 
@@ -573,24 +573,34 @@ def convertRedshiftBumpBlender(rs, source):
 
 	# no_rpr_analog
 
-	source_map = {
+	bump_map = {
 		"outColor": "out",
 		"outColorR": "outR",
 		"outColorG": "outG",
 		"outColorB": "outB"
 	}
 
+	normal_map = {
+		"outColor": "outDisplacementVector",
+		"outColorR": "outDisplacementVectorR",
+		"outColorG": "outDisplacementVectorG",
+		"outColorB": "outDisplacementVectorB"
+	}
+
 	rsMap = cmds.listConnections(rs + ".baseInput")
 	if rsMap:
-		if cmds.objectType(rsMap[0]) in ("RedshiftBumpMap", "RedshiftNormalMap"):
-			rpr = convertRSMaterial(rsMap[0], source_map[source])
+		mapType = cmds.objectType(rsMap[0])
+		if mapType == "RedshiftBumpMap":
+			rpr = convertRedshiftBumpMap(rsMap[0], bump_map[source])
+		elif mapType == "RedshiftNormalMap":
+			rpr = convertRedshiftNormalMap(rsMap[0], normal_map[source])
 	else:
 		rsBump = cmds.listConnections(rs, type="RedshiftBumpMap")
 		rsNormal = cmds.listConnections(rs, type="RedshiftNormalMap")
 		if rsBump:
-			rpr = convertRedshiftBumpMap(rsBump[0], source_map[source])
+			rpr = convertRedshiftBumpMap(rsBump[0], bump_map[source])
 		elif rsNormal:
-			rpr = convertRedshiftNormalMap(rsNormal[0], source_map[source])
+			rpr = convertRedshiftNormalMap(rsNormal[0], normal_map[source])
 
 	return rpr	
 
@@ -607,7 +617,8 @@ def convertStandartNode(rsMaterial, source):
 					source_name, source_attr = convertRSMaterial(obj, channel).split('.')
 					connectProperty(source_name, source_attr, rsMaterial, attr)
 	except Exception as ex:
-		traceback.print_exc()
+		#traceback.print_exc()
+		pass
 
 	return rsMaterial + "." + source
 
@@ -2273,7 +2284,6 @@ def convertScene():
 		try:
 			convertRedshiftEnvironment(env[0])
 		except Exception as ex:
-
 			traceback.print_exc()
 			print("Error while converting environment. ")
 
@@ -2283,7 +2293,6 @@ def convertScene():
 		try:
 			convertRedshiftPhysicalSky(sky[0])
 		except Exception as ex:
-
 			traceback.print_exc()
 			print("Error while converting physical sky. \n")
 
@@ -2293,7 +2302,6 @@ def convertScene():
 		try:
 			convertRedshiftVolumeScattering(atmosphere[0])
 		except Exception as ex:
-
 			traceback.print_exc()
 			print("Error while converting volume scattering environment.")
 
@@ -2305,7 +2313,6 @@ def convertScene():
 		try:
 			convertLight(light)
 		except Exception as ex:
-
 			traceback.print_exc()
 			print("Error while converting {} light. \n".format(light))
 		
@@ -2323,7 +2330,6 @@ def convertScene():
 			rpr_sg = cmds.listConnections(rpr, type="shadingEngine")[0]
 			cmds.sets(e=True, forceElement=rpr_sg)
 		except Exception as ex:
-
 			traceback.print_exc()
 			print("Error while converting {} material. \n".format(rs))
 	
@@ -2367,6 +2373,7 @@ def convertScene():
 				setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure", getProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure") / 4)
 			elif dofUseBokehImage == 1 and dofBokehNormalizationMode == 0:
 				setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure", getProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure") / 10)
+
 
 def auto_launch():
 	convertScene()
