@@ -2204,7 +2204,6 @@ def cleanScene():
 				cmds.delete(shEng[0])
 				cmds.delete(material)
 			except Exception as ex:
-	
 				traceback.print_exc()
 
 	listLights = cmds.ls(l=True, type=["RedshiftDomeLight", "RedshiftIESLight", "RedshiftPhysicalLight", "RedshiftPhysicalSun", "RedshiftPortalLight"])
@@ -2214,7 +2213,6 @@ def cleanScene():
 			cmds.delete(light)
 			cmds.delete(transform[0])
 		except Exception as ex:
-
 			traceback.print_exc()
 
 	listObjects = cmds.ls(l=True)
@@ -2223,7 +2221,6 @@ def cleanScene():
 			try:
 				cmds.delete(obj)
 			except Exception as ex:
-	
 				traceback.print_exc()
 
 
@@ -2361,6 +2358,15 @@ def convertScene():
 			setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure", 1 + getProperty(rsPhotographicExposure[0], "reinhardFactor"))
 			copyProperty("RadeonProRenderGlobals", rsPhotographicExposure[0], "toneMappingPhotolinearFstop", "fStop")
 
+	rsBokeh = cmds.ls(type="RedshiftBokeh")
+	if rsBokeh:
+		if getProperty(rsBokeh[0], "dofOn"):
+			dofUseBokehImage = getProperty(rsBokeh[0], "dofUseBokehImage")
+			dofBokehNormalizationMode = getProperty(rsBokeh[0], "dofBokehNormalizationMode")
+			if dofUseBokehImage == 0 or (dofUseBokehImage == 1 and dofBokehNormalizationMode != 0):
+				setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure", getProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure") / 4)
+			elif dofUseBokehImage == 1 and dofBokehNormalizationMode == 0:
+				setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure", getProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure") / 10)
 
 def auto_launch():
 	convertScene()
