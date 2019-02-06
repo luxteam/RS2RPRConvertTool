@@ -2360,9 +2360,20 @@ def convertScene():
 	if rsPhotographicExposure:
 		if getProperty(rsPhotographicExposure[0], "enable"):
 			setProperty("RadeonProRenderGlobals", "toneMappingType", 2)
-			setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearSensitivity", getProperty(rsPhotographicExposure[0], "filmSpeed") / 100)
-			setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure", 1 + getProperty(rsPhotographicExposure[0], "reinhardFactor"))
+			setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearSensitivity", getProperty(rsPhotographicExposure[0], "filmSpeed") / 100.0)
 			copyProperty("RadeonProRenderGlobals", rsPhotographicExposure[0], "toneMappingPhotolinearFstop", "fStop")
+
+			reinhardFactor = getProperty(rsPhotographicExposure[0], "reinhardFactor")
+			shutterRatio = getProperty(rsPhotographicExposure[0], "shutterRatio")
+			if shutterRatio >= 800:
+				exposure = (3.3 * (10 / (shutterRatio + 400) ** 0.5) / math.log((shutterRatio - 770) ** 0.7)) * 2 ** reinhardFactor
+				setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure", exposure)
+			elif shutterRatio < 800 and shutterRatio >= 43:
+				exposure = (10 / math.log10(shutterRatio - 28) ** 3) * 2 ** reinhardFactor
+				setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure", exposure)
+			else:
+				exposure = (10.5 / math.log10(shutterRatio + 1.25)) * 2 ** reinhardFactor
+				setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure", exposure)
 
 	rsBokeh = cmds.ls(type="RedshiftBokeh")
 	if rsBokeh:
@@ -2370,7 +2381,7 @@ def convertScene():
 			dofUseBokehImage = getProperty(rsBokeh[0], "dofUseBokehImage")
 			dofBokehNormalizationMode = getProperty(rsBokeh[0], "dofBokehNormalizationMode")
 			if dofUseBokehImage == 0 or (dofUseBokehImage == 1 and dofBokehNormalizationMode != 0):
-				setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure", getProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure") / 4)
+				setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure", getProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure") / 2)
 			elif dofUseBokehImage == 1 and dofBokehNormalizationMode == 0:
 				setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure", getProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure") / 10)
 
