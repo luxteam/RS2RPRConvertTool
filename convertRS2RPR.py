@@ -1404,40 +1404,86 @@ def convertRedshiftMaterial(rsMaterial, source):
 	copyProperty(rprMaterial, rsMaterial, "backscatteringWeight", "ms_amount")
 	copyProperty(rprMaterial, rsMaterial, "sssWeight", "ms_amount")
 
+	backscatteringWeight = getProperty(rsMaterial, "transl_weight")
+
+	# SSS
 	ms_amount = getProperty(rsMaterial, "ms_amount")
 	if ms_amount:
-		scatter_color = []
-		ms_weight0 = getProperty(rsMaterial, "ms_weight0")
-		ms_weight1 = getProperty(rsMaterial, "ms_weight1")
-		ms_weight2 = getProperty(rsMaterial, "ms_weight2")
-		count = 3
-		if not ms_weight0:
-			count -= 1
-		if not ms_weight1:
-			count -= 1
-		if not ms_weight2:
-			count -= 1
+		if not backscatteringWeight:
+			setProperty(rprMaterial, "backscatteringWeight", 0.5)
+			setProperty(rprMaterial, "separateBackscatterColor", 0)
 
-		color0 = getProperty(rsMaterial, "ms_color0")
-		color1 = getProperty(rsMaterial, "ms_color1")
-		color2 = getProperty(rsMaterial, "ms_color2")
-		scatter_color.append((color0[0] * ms_weight0 + color1[0] * ms_weight1 + color2[0] * ms_weight2) / count)
-		scatter_color.append((color0[1] * ms_weight0 + color1[1] * ms_weight1 + color2[1] * ms_weight2) / count)
-		scatter_color.append((color0[2] * ms_weight0 + color1[2] * ms_weight1 + color2[2] * ms_weight2) / count)
-		setProperty(rprMaterial, "volumeScatter", tuple(scatter_color))
+		# first layer
+		arithmetic1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(arithmetic1, "operation", 2)
+		# input A
+		if mapDoesNotExist(rsMaterial, "ms_color0"):
+			copyProperty(arithmetic1, rsMaterial, "inputA", "ms_color0")
+		else:
+			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic, "operation", 15)
+			copyProperty(arithmetic, rsMaterial, "inputA", "ms_color0")
+			setProperty(arithmetic, "inputB", (2, 2, 2))
+			connectProperty(arithmetic, "out", arithmetic1, "inputA")
+		# input B
+		factor1 = 2 * getProperty(rsMaterial, "ms_weight0") * getProperty(rsMaterial, "ms_radius0") * getProperty(rsMaterial, "ms_radius_scale")
+		setProperty(arithmetic1, "inputB", (factor1, factor1, factor1))
 
-		radius = []
-		ms_radius0 = getProperty(rsMaterial, "ms_radius0")
-		ms_radius1 = getProperty(rsMaterial, "ms_radius1")
-		ms_radius2 = getProperty(rsMaterial, "ms_radius2")
-		ms_radius_scale = getProperty(rsMaterial, "ms_radius_scale")
-		avg_radius = (ms_radius0 * ms_weight0 + ms_radius1 * ms_weight1 + ms_radius2 * ms_weight2) / count
-		radius.append((avg_radius + scatter_color[0]) * ms_radius_scale * ms_amount)
-		radius.append((avg_radius + scatter_color[1]) * ms_radius_scale * ms_amount)
-		radius.append((avg_radius + scatter_color[2]) * ms_radius_scale * ms_amount)
-		setProperty(rprMaterial, "subsurfaceRadius", tuple(radius))
+		# second layer
+		arithmetic2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(arithmetic2, "operation", 2)
+		# input A
+		if mapDoesNotExist(rsMaterial, "ms_color1"):
+			copyProperty(arithmetic2, rsMaterial, "inputA", "ms_color1")
+		else:
+			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic, "operation", 15)
+			copyProperty(arithmetic, rsMaterial, "inputA", "ms_color1")
+			setProperty(arithmetic, "inputB", (2, 2, 2))
+			connectProperty(arithmetic, "out", arithmetic2, "inputA")
+		# input B
+		factor2 = 2 * getProperty(rsMaterial, "ms_weight1") * getProperty(rsMaterial, "ms_radius1") * getProperty(rsMaterial, "ms_radius_scale")
+		setProperty(arithmetic2, "inputB", (factor2, factor2, factor2))	
 
-	backscatteringWeight = getProperty(rsMaterial, "transl_weight")
+		# third layer
+		arithmetic3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(arithmetic3, "operation", 2)
+		# input A
+		if mapDoesNotExist(rsMaterial, "ms_color2"):
+			copyProperty(arithmetic3, rsMaterial, "inputA", "ms_color2")
+		else:
+			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic, "operation", 15)
+			copyProperty(arithmetic, rsMaterial, "inputA", "ms_color2")
+			setProperty(arithmetic, "inputB", (2, 2, 2))
+			connectProperty(arithmetic, "out", arithmetic3, "inputA")
+		# input B
+		factor3 = 2 * getProperty(rsMaterial, "ms_weight2") * getProperty(rsMaterial, "ms_radius2") * getProperty(rsMaterial, "ms_radius_scale")
+		setProperty(arithmetic3, "inputB", (factor3, factor3, factor3))
+
+		arithmetic_mix_1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(arithmetic_mix_1, "operation", 20)
+		connectProperty(arithmetic1, "out", arithmetic_mix_1, "inputA")
+		connectProperty(arithmetic2, "out", arithmetic_mix_1, "inputB")
+
+		arithmetic_mix_2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(arithmetic_mix_2, "operation", 20)
+		connectProperty(arithmetic_mix_1, "out", arithmetic_mix_2, "inputA")
+		connectProperty(arithmetic3, "out", arithmetic_mix_2, "inputB")
+		connectProperty(arithmetic_mix_2, "out", rprMaterial, "subsurfaceRadius")
+
+		arithmetic_mix_3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(arithmetic_mix_3, "operation", 20)
+		copyProperty(arithmetic_mix_3, rsMaterial, "inputA", "ms_color0")
+		copyProperty(arithmetic_mix_3, rsMaterial, "inputB", "ms_color1")
+
+		arithmetic_mix_4 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(arithmetic_mix_4, "operation", 20)
+		connectProperty(arithmetic_mix_3, "out", arithmetic_mix_4, "inputA")
+		copyProperty(arithmetic_mix_4, rsMaterial, "inputB", "ms_color2")
+		connectProperty(arithmetic_mix_4, "out", rprMaterial, "volumeScatter")
+
+	# transl
 	if backscatteringWeight:
 		setProperty(rprMaterial, "separateBackscatterColor", 1)
 
