@@ -1442,7 +1442,7 @@ def convertRedshiftMaterial(rsMaterial, source):
 			setProperty(arithmetic, "inputB", (2, 2, 2))
 			connectProperty(arithmetic, "out", arithmetic2, "inputA")
 		# input B
-		factor2 = 2 * getProperty(rsMaterial, "ms_weight1") * getProperty(rsMaterial, "ms_radius1") * getProperty(rsMaterial, "ms_radius_scale")
+		factor2 = getProperty(rsMaterial, "ms_weight1") * getProperty(rsMaterial, "ms_radius1") * getProperty(rsMaterial, "ms_radius_scale")
 		setProperty(arithmetic2, "inputB", (factor2, factor2, factor2))	
 
 		# third layer
@@ -1458,7 +1458,7 @@ def convertRedshiftMaterial(rsMaterial, source):
 			setProperty(arithmetic, "inputB", (2, 2, 2))
 			connectProperty(arithmetic, "out", arithmetic3, "inputA")
 		# input B
-		factor3 = 2 * getProperty(rsMaterial, "ms_weight2") * getProperty(rsMaterial, "ms_radius2") * getProperty(rsMaterial, "ms_radius_scale")
+		factor3 = 0.5 * getProperty(rsMaterial, "ms_weight2") * getProperty(rsMaterial, "ms_radius2") * getProperty(rsMaterial, "ms_radius_scale")
 		setProperty(arithmetic3, "inputB", (factor3, factor3, factor3))
 
 		arithmetic_mix_1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
