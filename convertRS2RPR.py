@@ -1430,35 +1430,49 @@ def convertRedshiftMaterial(rsMaterial, source):
 		setProperty(arithmetic1, "inputB", (factor1, factor1, factor1))
 
 		# second layer
+		# divide L2 by 2
+		arithmetic_divide1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(arithmetic_divide1, "operation", 3)
+		copyProperty(arithmetic_divide1, rsMaterial, "inputA", "ms_color1")
+		setProperty(arithmetic_divide1, "inputB", (2, 2, 2))
+
+		# pow 2
 		arithmetic2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
 		setProperty(arithmetic2, "operation", 2)
 		# input A
 		if mapDoesNotExist(rsMaterial, "ms_color1"):
-			copyProperty(arithmetic2, rsMaterial, "inputA", "ms_color1")
+			connectProperty(arithmetic_divide1, "out", arithmetic2, "inputA")
 		else:
 			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
 			setProperty(arithmetic, "operation", 15)
-			copyProperty(arithmetic, rsMaterial, "inputA", "ms_color1")
+			connectProperty(arithmetic_divide1, "out", arithmetic, "inputA")
 			setProperty(arithmetic, "inputB", (2, 2, 2))
 			connectProperty(arithmetic, "out", arithmetic2, "inputA")
 		# input B
-		factor2 = getProperty(rsMaterial, "ms_weight1") * getProperty(rsMaterial, "ms_radius1") * getProperty(rsMaterial, "ms_radius_scale")
+		factor2 = 2 * getProperty(rsMaterial, "ms_weight1") * getProperty(rsMaterial, "ms_radius1") * getProperty(rsMaterial, "ms_radius_scale")
 		setProperty(arithmetic2, "inputB", (factor2, factor2, factor2))	
 
 		# third layer
+		# divide L3 by 4
+		arithmetic_divide2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(arithmetic_divide2, "operation", 3)
+		copyProperty(arithmetic_divide2, rsMaterial, "inputA", "ms_color2")
+		setProperty(arithmetic_divide2, "inputB", (4, 4, 4))
+
+		# pow 2
 		arithmetic3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
 		setProperty(arithmetic3, "operation", 2)
 		# input A
 		if mapDoesNotExist(rsMaterial, "ms_color2"):
-			copyProperty(arithmetic3, rsMaterial, "inputA", "ms_color2")
+			connectProperty(arithmetic_divide2, "out", arithmetic3, "inputA")
 		else:
 			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
 			setProperty(arithmetic, "operation", 15)
-			copyProperty(arithmetic, rsMaterial, "inputA", "ms_color2")
+			connectProperty(arithmetic_divide2, "out", arithmetic3, "inputA")
 			setProperty(arithmetic, "inputB", (2, 2, 2))
 			connectProperty(arithmetic, "out", arithmetic3, "inputA")
 		# input B
-		factor3 = 0.5 * getProperty(rsMaterial, "ms_weight2") * getProperty(rsMaterial, "ms_radius2") * getProperty(rsMaterial, "ms_radius_scale")
+		factor3 = 2 * getProperty(rsMaterial, "ms_weight2") * getProperty(rsMaterial, "ms_radius2") * getProperty(rsMaterial, "ms_radius_scale")
 		setProperty(arithmetic3, "inputB", (factor3, factor3, factor3))
 
 		arithmetic_mix_1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
@@ -1475,12 +1489,12 @@ def convertRedshiftMaterial(rsMaterial, source):
 		arithmetic_mix_3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
 		setProperty(arithmetic_mix_3, "operation", 20)
 		copyProperty(arithmetic_mix_3, rsMaterial, "inputA", "ms_color0")
-		copyProperty(arithmetic_mix_3, rsMaterial, "inputB", "ms_color1")
+		connectProperty(arithmetic_divide1, "out", arithmetic_mix_3, "inputB")
 
 		arithmetic_mix_4 = cmds.shadingNode("RPRArithmetic", asUtility=True)
 		setProperty(arithmetic_mix_4, "operation", 20)
 		connectProperty(arithmetic_mix_3, "out", arithmetic_mix_4, "inputA")
-		copyProperty(arithmetic_mix_4, rsMaterial, "inputB", "ms_color2")
+		connectProperty(arithmetic_divide2, "out", arithmetic_mix_4, "inputB")
 		connectProperty(arithmetic_mix_4, "out", rprMaterial, "volumeScatter")
 
 	# transl
