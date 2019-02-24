@@ -54,6 +54,7 @@ v.2.15 - Improve normal map conversion in rsMaterial and rsArchitectural
 v.2.16 - Improve rsArchitectural and rsMaterial conversion
 		Changed BumpBlender conversion 
 		Photoexposure conversion
+v.2.17 - Multiscatter SSS improvements
 
 '''
 
@@ -74,7 +75,7 @@ def write_converted_property_log(rpr_name, rs_name, rpr_attr, rs_attr):
 			f.write(u"    property {}.{} is converted to {}.{}   \r\n".format(rs_name, rs_attr, rpr_name, rpr_attr).encode('utf-8'))
 	except Exception as ex:
 		pass
-		#print("Error writing conversion logs. Scene is not saved")
+
 
 def write_own_property_log(text):
 
@@ -84,7 +85,7 @@ def write_own_property_log(text):
 			f.write("    {}   \r\n".format(text))
 	except Exception as ex:
 		pass
-		#print("Error writing logs. Scene is not saved")
+
 
 def start_log(rs, rpr):
 
@@ -100,7 +101,7 @@ def start_log(rs, rpr):
 			f.write(text)
 	except Exception as ex:
 		pass
-		#print("Error writing start log. Scene is not saved")
+	
 
 
 def end_log(rs):
@@ -113,7 +114,7 @@ def end_log(rs):
 			f.write(text)
 	except Exception as ex:
 		pass
-		#print("Error writing end logs. Scene is not saved")
+		
 
 # additional fucntions
 
@@ -122,21 +123,87 @@ def copyProperty(rpr_name, rs_name, rpr_attr, rs_attr):
 	# full name of attribute
 	rs_field = rs_name + "." + rs_attr
 	rpr_field = rpr_name + "." + rpr_attr
+	rs_type = type(getProperty(rs_name, rs_attr))
+	rpr_type = type(getProperty(rpr_name, rpr_attr))
 
 	try:
 		listConnections = cmds.listConnections(rs_field)
-	except Exception:
-		print(u"There is no {} field in this node. Check the field and try again. ".format(rs_field).encode('utf-8'))
-		write_own_property_log(u"There is no {} field in this node. Check the field and try again. ".format(rs_field).encode('utf-8'))
-		return
-
-	try:
+		# connection convert
 		if listConnections:
 			obj, channel = cmds.connectionInfo(rs_field, sourceFromDestination=True).split('.')
 			source_name, source_attr = convertRSMaterial(obj, channel).split('.')
 			connectProperty(source_name, source_attr, rpr_name, rpr_attr)
+		# complex color conversion for each channel (RGB/XYZ/HSV)
+		if not listConnections and rs_type == tuple and 1.0 in getProperty(rs_name, rs_attr):
+			# RGB (redshift)
+			if cmds.objExists(rs_field + "R") and cmds.objExists(rpr_field + "R"):
+				copyProperty(rpr_name, rs_name, rpr_attr + "R", rs_attr + "R")
+				copyProperty(rpr_name, rs_name, rpr_attr + "G", rs_attr + "G")
+				copyProperty(rpr_name, rs_name, rpr_attr + "B", rs_attr + "B")
+			if cmds.objExists(rs_field + "R") and cmds.objExists(rpr_field + "X"):
+				copyProperty(rpr_name, rs_name, rpr_attr + "X", rs_attr + "R")
+				copyProperty(rpr_name, rs_name, rpr_attr + "Y", rs_attr + "G")
+				copyProperty(rpr_name, rs_name, rpr_attr + "Z", rs_attr + "B")
+			if cmds.objExists(rs_field + "R") and cmds.objExists(rpr_field + "H"):
+				copyProperty(rpr_name, rs_name, rpr_attr + "H", rs_attr + "R")
+				copyProperty(rpr_name, rs_name, rpr_attr + "S", rs_attr + "G")
+				copyProperty(rpr_name, rs_name, rpr_attr + "V", rs_attr + "B")
+			# XYZ (redshift)
+			if cmds.objExists(rs_field + "X") and cmds.objExists(rpr_field + "R"):
+				copyProperty(rpr_name, rs_name, rpr_attr + "R", rs_attr + "X")
+				copyProperty(rpr_name, rs_name, rpr_attr + "G", rs_attr + "Y")
+				copyProperty(rpr_name, rs_name, rpr_attr + "B", rs_attr + "Z")
+			if cmds.objExists(rs_field + "X") and cmds.objExists(rpr_field + "X"):
+				copyProperty(rpr_name, rs_name, rpr_attr + "X", rs_attr + "X")
+				copyProperty(rpr_name, rs_name, rpr_attr + "Y", rs_attr + "Y")
+				copyProperty(rpr_name, rs_name, rpr_attr + "Z", rs_attr + "Z")
+			if cmds.objExists(rs_field + "X") and cmds.objExists(rpr_field + "H"):
+				copyProperty(rpr_name, rs_name, rpr_attr + "H", rs_attr + "X")
+				copyProperty(rpr_name, rs_name, rpr_attr + "S", rs_attr + "Y")
+				copyProperty(rpr_name, rs_name, rpr_attr + "V", rs_attr + "Z")
+			# HSV (redshift)
+			if cmds.objExists(rs_field + "H") and cmds.objExists(rpr_field + "R"):
+				copyProperty(rpr_name, rs_name, rpr_attr + "R", rs_attr + "H")
+				copyProperty(rpr_name, rs_name, rpr_attr + "G", rs_attr + "S")
+				copyProperty(rpr_name, rs_name, rpr_attr + "B", rs_attr + "V")
+			if cmds.objExists(rs_field + "H") and cmds.objExists(rpr_field + "X"):
+				copyProperty(rpr_name, rs_name, rpr_attr + "X", rs_attr + "H")
+				copyProperty(rpr_name, rs_name, rpr_attr + "Y", rs_attr + "S")
+				copyProperty(rpr_name, rs_name, rpr_attr + "Z", rs_attr + "V")
+			if cmds.objExists(rs_field + "H") and cmds.objExists(rpr_field + "H"):
+				copyProperty(rpr_name, rs_name, rpr_attr + "H", rs_attr + "H")
+				copyProperty(rpr_name, rs_name, rpr_attr + "S", rs_attr + "S")
+				copyProperty(rpr_name, rs_name, rpr_attr + "V", rs_attr + "V")
+
+		# field conversion
 		else:
-			setProperty(rpr_name, rpr_attr, getProperty(rs_name, rs_attr))
+			if rs_type == rpr_type:
+				setProperty(rpr_name, rpr_attr, getProperty(rs_name, rs_attr))
+			elif rs_type == tuple and rpr_type == float:
+				if cmds.objExists(rs_field + "R"):
+					rs_attr += "R"
+				elif cmds.objExists(rs_field + "X"):
+					rs_attr += "X"
+				elif cmds.objExists(rs_field + "H"):
+					rs_attr += "H"
+				setProperty(rpr_name, rpr_attr, getProperty(rs_name, rs_attr))
+			elif rs_type == float and rpr_type == tuple:
+				if cmds.objExists(rpr_field + "R"):
+					rpr_attr1 = rpr_attr + "R"
+					rpr_attr2 = rpr_attr + "G"
+					rpr_attr3 = rpr_attr + "B"
+				elif cmds.objExists(rpr_field + "X"):
+					rpr_attr1 = rpr_attr + "X"
+					rpr_attr2 = rpr_attr + "Y"
+					rpr_attr3 = rpr_attr + "Z"
+				elif cmds.objExists(rs_field + "H"):
+					rpr_attr1 = rpr_attr + "H"
+					rpr_attr2 = rpr_attr + "S"
+					rpr_attr3 = rpr_attr + "V"
+				setProperty(rpr_name, rpr_attr1, getProperty(rs_name, rs_attr))
+				setProperty(rpr_name, rpr_attr2, getProperty(rs_name, rs_attr))
+				setProperty(rpr_name, rpr_attr3, getProperty(rs_name, rs_attr))
+
 			write_converted_property_log(rpr_name, rs_name, rpr_attr, rs_attr)
 	except Exception as ex:
 		traceback.print_exc()
@@ -201,9 +268,53 @@ def connectProperty(source_name, source_attr, rpr_name, rpr_attr):
 	rpr_field = rpr_name + "." + rpr_attr
 
 	try:
-		if cmds.objectType(source_name) == "file":
-			setProperty(source_name, "ignoreColorSpaceFileRules", 1)
-		cmds.connectAttr(source, rpr_field, force=True)
+		source_type = type(getProperty(source_name, source_attr))
+		dest_type = type(getProperty(rpr_name, rpr_attr))
+
+		if rpr_attr in ("surfaceShader", "volumeShader"):
+			cmds.connectAttr(source, rpr_field, force=True)
+
+		elif cmds.objExists(source_name + ".outAlpha") and cmds.objExists(source_name + ".outColor"):
+			if cmds.objectType(source_name) == "file":
+				setProperty(source_name, "ignoreColorSpaceFileRules", 1)
+
+			if source_type == dest_type:
+				cmds.connectAttr(source, rpr_field, force=True)
+			elif source_type == tuple and dest_type == float:
+				source = source_name + ".outAlpha"
+				cmds.connectAttr(source, rpr_field, force=True)
+			elif source_type == float and dest_type == tuple:
+				source = source_name + ".outColor"
+				cmds.connectAttr(source, rpr_field, force=True)
+
+		else:
+			if source_type == dest_type:
+				cmds.connectAttr(source, rpr_field, force=True)
+			elif source_type == tuple and dest_type == float:
+				if cmds.objExists(source + "R"):
+					source += "R"
+				elif cmds.objExists(source + "X"):
+					source += "X"
+				elif cmds.objExists(source + "X"):
+					source += "H"
+				cmds.connectAttr(source, rpr_field, force=True)
+			elif source_type == float and dest_type == tuple:
+				if cmds.objExists(rpr_field + "R"):
+					rpr_field1 = rpr_field + "R"
+					rpr_field2 = rpr_field + "G"
+					rpr_field3 = rpr_field + "B"
+				elif cmds.objExists(rpr_field + "X"):
+					rpr_field1 = rpr_field + "X"
+					rpr_field2 = rpr_field + "Y"
+					rpr_field3 = rpr_field + "Z"
+				elif cmds.objExists(rpr_field + "H"):
+					rpr_field1 = rpr_field + "H"
+					rpr_field2 = rpr_field + "S"
+					rpr_field3 = rpr_field + "V"
+				cmds.connectAttr(source, rpr_field1, force=True)
+				cmds.connectAttr(source, rpr_field2, force=True)
+				cmds.connectAttr(source, rpr_field3, force=True)
+
 		write_own_property_log(u"Created connection from {} to {}.".format(source, rpr_field).encode('utf-8'))
 	except Exception as ex:
 		traceback.print_exc()
@@ -238,26 +349,29 @@ def convertDisplacement(rs_sg, rpr_name):
 
 def convertbump2d(rs, source):
 
-	bump_type = getProperty(rs, "bumpInterp")
-	if not bump_type:
-		rpr = cmds.shadingNode("RPRBump", asUtility=True)
-		rpr = cmds.rename(rpr, rs + "_rpr")
+	if cmds.objExists(rs + "_rpr"):
+		rpr = rs + "_rpr"
 	else:
-		rpr = cmds.shadingNode("RPRNormal", asUtility=True)
-		rpr = cmds.rename(rpr, rs + "_rpr")
+		bump_type = getProperty(rs, "bumpInterp")
+		if not bump_type:
+			rpr = cmds.shadingNode("RPRBump", asUtility=True)
+			rpr = cmds.rename(rpr, rs + "_rpr")
+		else:
+			rpr = cmds.shadingNode("RPRNormal", asUtility=True)
+			rpr = cmds.rename(rpr, rs + "_rpr")
 
-	# Logging to file
-	start_log(rs, rpr)
+		# Logging to file
+		start_log(rs, rpr)
 
-	# Fields conversion
-	bumpConnections = cmds.listConnections(rs + ".bumpValue", type="file")
-	if bumpConnections:
-		connectProperty(bumpConnections[0], "outColor", rpr, "color")
+		# Fields conversion
+		bumpConnections = cmds.listConnections(rs + ".bumpValue", type="file")
+		if bumpConnections:
+			connectProperty(bumpConnections[0], "outColor", rpr, "color")
 
-	copyProperty(rpr, rs, "strength", "bumpDepth")
+		copyProperty(rpr, rs, "strength", "bumpDepth")
 
-	# Logging to file
-	end_log(rs)
+		# Logging to file
+		end_log(rs)
 
 	conversion_map = {
 		"outNormal": "out",
@@ -272,25 +386,28 @@ def convertbump2d(rs, source):
 
 def convertmultiplyDivide(rs, source):
 
-	rpr = cmds.shadingNode("RPRArithmetic", asUtility=True)
-	rpr = cmds.rename(rpr, rs + "_rpr")
+	if cmds.objExists(rs + "_rpr"):
+		rpr = rs + "_rpr"
+	else:
+		rpr = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		rpr = cmds.rename(rpr, rs + "_rpr")
 
-	# Logging to file
-	start_log(rs, rpr)
+		# Logging to file
+		start_log(rs, rpr)
 
-	# Fields conversion
-	operation = getProperty(rs, "operation")
-	operation_map = {
-		1: 2,
-		2: 3,
-		3: 15
- 	}
-	setProperty(rpr, "operation", operation_map[operation])
-	copyProperty(rpr, rs, "inputA", "input1")
-	copyProperty(rpr, rs, "inputB", "input2")
-	
-	# Logging to file
-	end_log(rs)
+		# Fields conversion
+		operation = getProperty(rs, "operation")
+		operation_map = {
+			1: 2,
+			2: 3,
+			3: 15
+	 	}
+		setProperty(rpr, "operation", operation_map[operation])
+		copyProperty(rpr, rs, "inputA", "input1")
+		copyProperty(rpr, rs, "inputB", "input2")
+		
+		# Logging to file
+		end_log(rs)
 
 	conversion_map = {
 		"output": "out",
@@ -305,46 +422,49 @@ def convertmultiplyDivide(rs, source):
 
 def convertRedshiftNoise(rs, source):
 
-	noiseType = getProperty(rs, "noise_type")
-	
-	if noiseType == 0:
-		rpr = cmds.shadingNode("simplexNoise", asUtility=True)
-	elif noiseType == 2:
-		rpr = cmds.shadingNode("fractal", asUtility=True)
-	elif noiseType == 3:
-		rpr = cmds.shadingNode("noise", asUtility=True)
+	if cmds.objExists(rs + "_rpr"):
+		rpr = rs + "_rpr"
+	else:
+		noiseType = getProperty(rs, "noise_type")
+		
+		if noiseType == 0:
+			rpr = cmds.shadingNode("simplexNoise", asUtility=True)
+		elif noiseType == 2:
+			rpr = cmds.shadingNode("fractal", asUtility=True)
+		elif noiseType == 3:
+			rpr = cmds.shadingNode("noise", asUtility=True)
 
-	rpr = cmds.rename(rpr, rs + "_rpr")
+		rpr = cmds.rename(rpr, rs + "_rpr")
 
-	texture = cmds.shadingNode("place2dTexture", asUtility=True)
+		texture = cmds.shadingNode("place2dTexture", asUtility=True)
 
-	connectProperty(texture, "outUV", rpr, "uv")
-	connectProperty(texture, "outUvFilterSize", rpr, "uvFilterSize")
-	setProperty(texture, "repeatU", getProperty(rs, "coord_scale_global") * getProperty(rs, "coord_scale0"))
-	setProperty(texture, "repeatV", getProperty(rs, "coord_scale_global") * getProperty(rs, "coord_scale1"))
-	copyProperty(texture, rs, "offsetU", "coord_offset0")
-	copyProperty(texture, rs, "offsetV", "coord_offset1")
+		connectProperty(texture, "outUV", rpr, "uv")
+		connectProperty(texture, "outUvFilterSize", rpr, "uvFilterSize")
+		setProperty(texture, "repeatU", getProperty(rs, "coord_scale_global") * getProperty(rs, "coord_scale0"))
+		setProperty(texture, "repeatV", getProperty(rs, "coord_scale_global") * getProperty(rs, "coord_scale1"))
+		copyProperty(texture, rs, "offsetU", "coord_offset0")
+		copyProperty(texture, rs, "offsetV", "coord_offset1")
 
-	# Logging to file (start)
-	start_log(rs, rpr)
+		# Logging to file (start)
+		start_log(rs, rpr)
 
-	setProperty(rpr, "amplitude", getProperty(rs, "noise_gain") / 2)
+		setProperty(rpr, "amplitude", getProperty(rs, "noise_gain") / 2)
 
-	if noiseType == 0:
-		setProperty(rpr, "noiseType", 1)
-		copyProperty(rpr, rs, "octaves", "noise_complexity")
-		copyProperty(rpr, rs, "frequency", "noise_scale")
-		copyProperty(rpr, rs, "distortionU", "distort")
-		copyProperty(rpr, rs, "distortionV", "distort")
-		copyProperty(rpr, rs, "distortionRatio", "distort_scale")
-	elif noiseType == 2:
-		copyProperty(rpr, rs, "frequencyRatio", "noise_scale")
-	elif noiseType == 3:
-		copyProperty(rpr, rs, "depthMax", "noise_complexity")
-		copyProperty(rpr, rs, "frequencyRatio", "noise_scale")
+		if noiseType == 0:
+			setProperty(rpr, "noiseType", 1)
+			copyProperty(rpr, rs, "octaves", "noise_complexity")
+			copyProperty(rpr, rs, "frequency", "noise_scale")
+			copyProperty(rpr, rs, "distortionU", "distort")
+			copyProperty(rpr, rs, "distortionV", "distort")
+			copyProperty(rpr, rs, "distortionRatio", "distort_scale")
+		elif noiseType == 2:
+			copyProperty(rpr, rs, "frequencyRatio", "noise_scale")
+		elif noiseType == 3:
+			copyProperty(rpr, rs, "depthMax", "noise_complexity")
+			copyProperty(rpr, rs, "frequencyRatio", "noise_scale")
 
-	# Logging to file (end)
-	end_log(rs)
+		# Logging to file (end)
+		end_log(rs)
 
 	rpr += "." + source
 	return rpr
@@ -353,53 +473,56 @@ def convertRedshiftNoise(rs, source):
 # re-convert is not fully supported for this node (only scale field)
 def convertRedshiftNormalMap(rs, source):
 
-	rpr = cmds.shadingNode("RPRNormal", asUtility=True)
-	rpr = cmds.rename(rpr, rs + "_rpr")
-	file = cmds.shadingNode("file", asTexture=True, isColorManaged=True)
-	texture = cmds.shadingNode("place2dTexture", asUtility=True)
-
-	connectProperty(texture, "coverage", file, "coverage")
-	connectProperty(texture, "translateFrame", file, "translateFrame")
-	connectProperty(texture, "rotateFrame", file, "rotateFrame")
-	connectProperty(texture, "mirrorU", file, "mirrorU")
-	connectProperty(texture, "mirrorV", file, "mirrorV")
-	connectProperty(texture, "stagger", file, "stagger")
-	connectProperty(texture, "wrapU", file, "wrapU")
-	connectProperty(texture, "wrapV", file, "wrapV")
-	connectProperty(texture, "repeatUV", file, "repeatUV")
-	connectProperty(texture, "offset", file, "offset")
-	connectProperty(texture, "rotateUV", file, "rotateUV")
-	connectProperty(texture, "noiseUV", file, "noiseUV")
-	connectProperty(texture, "vertexUvOne", file, "vertexUvOne")
-	connectProperty(texture, "vertexUvTwo", file, "vertexUvTwo")
-	connectProperty(texture, "vertexUvThree", file, "vertexUvThree")
-	connectProperty(texture, "vertexCameraOne", file, "vertexCameraOne")
-	connectProperty(texture, "outUV", file, "uv")
-	connectProperty(texture, "outUvFilterSize", file, "uvFilterSize")
-	copyProperty(texture, rs, "repeatU", "repeats0")
-	copyProperty(texture, rs, "repeatV", "repeats1")
-
-	if getProperty(rs, "flipY"):
-		arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(arithmetic, "inputA", (1, 1, 1))
-		setProperty(arithmetic, "operation", 1)
-		connectProperty(file, "outColorG", arithmetic, "inputBY")
-		connectProperty(arithmetic, "outY", rpr, "colorG")
-		connectProperty(file, "outColorR", rpr, "colorR")
-		connectProperty(file, "outColorB", rpr, "colorB")
+	if cmds.objExists(rs + "_rpr"):
+		rpr = rs + "_rpr"
 	else:
-		connectProperty(file, "outColor", rpr, "color")
+		rpr = cmds.shadingNode("RPRNormal", asUtility=True)
+		rpr = cmds.rename(rpr, rs + "_rpr")
+		file = cmds.shadingNode("file", asTexture=True, isColorManaged=True)
+		texture = cmds.shadingNode("place2dTexture", asUtility=True)
 
-	setProperty(file, "colorSpace", "Raw")
-	setProperty(file, "fileTextureName", getProperty(rs, "tex0"))
-		
-	# Logging to file (start)
-	start_log(rs, rpr)
+		connectProperty(texture, "coverage", file, "coverage")
+		connectProperty(texture, "translateFrame", file, "translateFrame")
+		connectProperty(texture, "rotateFrame", file, "rotateFrame")
+		connectProperty(texture, "mirrorU", file, "mirrorU")
+		connectProperty(texture, "mirrorV", file, "mirrorV")
+		connectProperty(texture, "stagger", file, "stagger")
+		connectProperty(texture, "wrapU", file, "wrapU")
+		connectProperty(texture, "wrapV", file, "wrapV")
+		connectProperty(texture, "repeatUV", file, "repeatUV")
+		connectProperty(texture, "offset", file, "offset")
+		connectProperty(texture, "rotateUV", file, "rotateUV")
+		connectProperty(texture, "noiseUV", file, "noiseUV")
+		connectProperty(texture, "vertexUvOne", file, "vertexUvOne")
+		connectProperty(texture, "vertexUvTwo", file, "vertexUvTwo")
+		connectProperty(texture, "vertexUvThree", file, "vertexUvThree")
+		connectProperty(texture, "vertexCameraOne", file, "vertexCameraOne")
+		connectProperty(texture, "outUV", file, "uv")
+		connectProperty(texture, "outUvFilterSize", file, "uvFilterSize")
+		copyProperty(texture, rs, "repeatU", "repeats0")
+		copyProperty(texture, rs, "repeatV", "repeats1")
 
-	copyProperty(rpr, rs, "strength", "scale")
+		if getProperty(rs, "flipY"):
+			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic, "inputA", (1, 1, 1))
+			setProperty(arithmetic, "operation", 1)
+			connectProperty(file, "outColorG", arithmetic, "inputBY")
+			connectProperty(arithmetic, "outY", rpr, "colorG")
+			connectProperty(file, "outColorR", rpr, "colorR")
+			connectProperty(file, "outColorB", rpr, "colorB")
+		else:
+			connectProperty(file, "outColor", rpr, "color")
 
-	# Logging to file (end)
-	end_log(rs)
+		setProperty(file, "colorSpace", "Raw")
+		setProperty(file, "fileTextureName", getProperty(rs, "tex0"))
+			
+		# Logging to file (start)
+		start_log(rs, rpr)
+
+		copyProperty(rpr, rs, "strength", "scale")
+
+		# Logging to file (end)
+		end_log(rs)
 
 	conversion_map = {
 		"outDisplacementVector": "out",
@@ -414,19 +537,22 @@ def convertRedshiftNormalMap(rs, source):
 
 def convertRedshiftAmbientOcclusion(rs, source):
 
-	rpr = cmds.shadingNode("RPRAmbientOcclusion", asUtility=True)
-	rpr = cmds.rename(rpr, rs + "_rpr")
+	if cmds.objExists(rs + "_rpr"):
+		rpr = rs + "_rpr"
+	else:
+		rpr = cmds.shadingNode("RPRAmbientOcclusion", asUtility=True)
+		rpr = cmds.rename(rpr, rs + "_rpr")
 
-	# Logging to file
-	start_log(rs, rpr)
+		# Logging to file
+		start_log(rs, rpr)
 
-	# Fields conversion
-	copyProperty(rpr, rs, "unoccludedColor", "bright")
-	copyProperty(rpr, rs, "occludedColor", "dark")
-	copyProperty(rpr, rs, "radius", "spread")
+		# Fields conversion
+		copyProperty(rpr, rs, "unoccludedColor", "bright")
+		copyProperty(rpr, rs, "occludedColor", "dark")
+		copyProperty(rpr, rs, "radius", "spread")
 
-	# Logging to file
-	end_log(rs)
+		# Logging to file
+		end_log(rs)
 
 	conversion_map = {
 		"outColor": "output",
@@ -442,23 +568,26 @@ def convertRedshiftAmbientOcclusion(rs, source):
 # re-convert for ior in unsupported
 def convertRedshiftFresnel(rs, source):
 
-	rpr = cmds.shadingNode("RPRBlendValue", asUtility=True)
-	
-	fresnel = cmds.shadingNode("RPRFresnel", asUtility=True)
-	fresnel = cmds.rename(fresnel, rs + "_rpr")
+	if cmds.objExists(rs + "_rpr"):
+		rpr = rs + "_rpr"
+	else:
+		rpr = cmds.shadingNode("RPRBlendValue", asUtility=True)
+		
+		fresnel = cmds.shadingNode("RPRFresnel", asUtility=True)
+		fresnel = cmds.rename(fresnel, rs + "_rpr")
 
-	connectProperty(fresnel, "out", rpr, "weight")
-	copyProperty(fresnel, rs, "ior", "ior")
+		connectProperty(fresnel, "out", rpr, "weight")
+		copyProperty(fresnel, rs, "ior", "ior")
 
-	# Logging to file
-	start_log(rs, rpr)
+		# Logging to file
+		start_log(rs, rpr)
 
-	# Fields conversion
-	copyProperty(rpr, rs, "inputA", "facing_color")
-	copyProperty(rpr, rs, "inputB", "perp_color")
+		# Fields conversion
+		copyProperty(rpr, rs, "inputA", "facing_color")
+		copyProperty(rpr, rs, "inputB", "perp_color")
 
-	# Logging to file
-	end_log(rs)
+		# Logging to file
+		end_log(rs)
 
 	conversion_map = {
 		"outColor": "out",
@@ -473,25 +602,31 @@ def convertRedshiftFresnel(rs, source):
 
 def convertRedshiftColorCorrection(rs, source):
 
-	rpr = cmds.shadingNode("colorCorrect", asUtility=True)
-	rpr = cmds.rename(rpr, rs + "_rpr")
+	if cmds.objExists(rs + "_rpr"):
+		rpr = rs + "_rpr"
+	else:
+		rpr = cmds.shadingNode("colorCorrect", asUtility=True)
+		rpr = cmds.rename(rpr, rs + "_rpr")
 
-	# Logging to file
-	start_log(rs, rpr)
+		# Logging to file
+		start_log(rs, rpr)
 
-	# Fields conversion
-	copyProperty(rpr, rs, "inColor", "input")
-	copyProperty(rpr, rs, "hueShift", "hue")
-	copyProperty(rpr, rs, "satGain", "saturation")
-	copyProperty(rpr, rs, "valGain", "level")
+		# Fields conversion
+		copyProperty(rpr, rs, "inColor", "input")
+		copyProperty(rpr, rs, "hueShift", "hue")
+		copyProperty(rpr, rs, "satGain", "saturation")
+		copyProperty(rpr, rs, "valGain", "level")
+		copyProperty(rpr, rs, "colGamma", "gamma")
 
-	# gamma conversion. Doesn't support map conversion.
-	if mapDoesNotExist(rs, "gamma"):
-		gamma = getProperty(rs, "gamma")
-		setProperty(rpr, "colGamma", (gamma, gamma, gamma))
+		# gamma conversion. Doesn't support map conversion.
+		'''
+		if mapDoesNotExist(rs, "gamma"):
+			gamma = getProperty(rs, "gamma")
+			setProperty(rpr, "colGamma", (gamma, gamma, gamma))
+		'''
 
-	# Logging to file
-	end_log(rs)
+		# Logging to file
+		end_log(rs)
 
 	rpr += "." + source
 	return rpr
@@ -499,26 +634,29 @@ def convertRedshiftColorCorrection(rs, source):
 
 def convertRedshiftBumpMap(rs, source):
 
-	inputType = getProperty(rs, "inputType")
-	if inputType == 0:
-		rpr = cmds.shadingNode("RPRBump", asUtility=True)
-	elif inputType == 1:
-		rpr = cmds.shadingNode("RPRNormal", asUtility=True)
-	elif inputType == 2:
-		rpr = cmds.shadingNode("RPRNormal", asUtility=True)
-		print(u"Bump map conversion ({}) is incorrect. You need conversion into Tangent Space.".format(rs).encode('utf-8'))
+	if cmds.objExists(rs + "_rpr"):
+		rpr = rs + "_rpr"
+	else:
+		inputType = getProperty(rs, "inputType")
+		if inputType == 0:
+			rpr = cmds.shadingNode("RPRBump", asUtility=True)
+		elif inputType == 1:
+			rpr = cmds.shadingNode("RPRNormal", asUtility=True)
+		elif inputType == 2:
+			rpr = cmds.shadingNode("RPRNormal", asUtility=True)
+			print(u"Bump map conversion ({}) is incorrect. You need conversion into Tangent Space.".format(rs).encode('utf-8'))
 
-	rpr = cmds.rename(rpr, rs + "_rpr")
+		rpr = cmds.rename(rpr, rs + "_rpr")
 
-	# Logging to file
-	start_log(rs, rpr)
+		# Logging to file
+		start_log(rs, rpr)
 
-	# Fields conversion
-	copyProperty(rpr, rs, "strength", "scale")
-	copyProperty(rpr, rs, "color", "input")
+		# Fields conversion
+		copyProperty(rpr, rs, "strength", "scale")
+		copyProperty(rpr, rs, "color", "input")
 
-	# Logging to file
-	end_log(rs)
+		# Logging to file
+		end_log(rs)
 
 	rpr += "." + source
 	return rpr
@@ -526,29 +664,40 @@ def convertRedshiftBumpMap(rs, source):
 
 def convertRedshiftColorLayer(rs, source):
 
-	layer1_blend_mode = getProperty(rs, "layer1_blend_mode")
-	if layer1_blend_mode in (2, 3, 4, 15):
-		rpr = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		rpr = cmds.rename(rpr, rs + "_rpr")
+	if cmds.objExists(rs + "_rpr"):
+		rpr = rs + "_rpr"
 	else:
-		rpr = cmds.shadingNode("RPRBlendMaterial", asShader=True)
-		rpr = cmds.rename(rpr, rs + "_rpr")
+		layer1_blend_mode = getProperty(rs, "layer1_blend_mode")
+		if layer1_blend_mode in (2, 3, 4, 15):
+			rpr = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			rpr = cmds.rename(rpr, rs + "_rpr")
+		else:
+			rpr = cmds.shadingNode("RPRBlendMaterial", asShader=True)
+			rpr = cmds.rename(rpr, rs + "_rpr")
 
-	# Logging to file
-	start_log(rs, rpr)
+		# Logging to file
+		start_log(rs, rpr)
 
-	# Fields conversion
+		# Fields conversion
+		if cmds.objectType(rpr) == "RPRArithmetic":
+			conversion_map_operation = {
+				2: 0,
+				3: 1,
+				4: 2,
+				15: 3
+			}
+			setProperty(rpr, "operation", conversion_map_operation[layer1_blend_mode])
+			copyProperty(rpr, rs, "inputA", "base_color")
+			copyProperty(rpr, rs, "inputB", "layer1_color")
+		else:
+			copyProperty(rpr, rs, "color0", "base_color")
+			copyProperty(rpr, rs, "color1", "layer1_color")
+			copyProperty(rpr, rs, "weight", "layer1_mask")
+
+		# Logging to file
+		end_log(rs)
+
 	if cmds.objectType(rpr) == "RPRArithmetic":
-		conversion_map_operation = {
-			2: 0,
-			3: 1,
-			4: 2,
-			15: 3
-		}
-		setProperty(rpr, "operation", conversion_map_operation[layer1_blend_mode])
-		copyProperty(rpr, rs, "inputA", "base_color")
-		copyProperty(rpr, rs, "inputB", "layer1_color")
-
 		conversion_map = {
 			"outColor": "out",
 			"outColorR": "outR",
@@ -556,14 +705,6 @@ def convertRedshiftColorLayer(rs, source):
 			"outColorB": "outB"
 		}
 		source = conversion_map[source]
-
-	else:
-		copyProperty(rpr, rs, "color0", "base_color")
-		copyProperty(rpr, rs, "color1", "layer1_color")
-		copyProperty(rpr, rs, "weight", "layer1_mask")
-
-	# Logging to file
-	end_log(rs)
 
 	rpr += "." + source
 	return rpr
@@ -647,16 +788,16 @@ def convertRedshiftBumpBlender(rs, source):
 # standart utilities
 def convertStandartNode(rsMaterial, source):
 
+	not_converted_list = ("materialInfo", "defaultShaderList", "shadingEngine", "place2dTexture")
 	try:
 		for attr in cmds.listAttr(rsMaterial):
 			connection = cmds.listConnections(rsMaterial + "." + attr)
 			if connection:
-				if cmds.objectType(connection[0]) not in ("materialInfo", "defaultShaderList", "shadingEngine") and attr not in (source, "message"):
+				if cmds.objectType(connection[0]) not in not_converted_list and attr not in (source, "message"):
 					obj, channel = cmds.connectionInfo(rsMaterial + "." + attr, sourceFromDestination=True).split('.')
 					source_name, source_attr = convertRSMaterial(obj, channel).split('.')
 					connectProperty(source_name, source_attr, rsMaterial, attr)
 	except Exception as ex:
-		#traceback.print_exc()
 		pass
 
 	return rsMaterial + "." + source
@@ -665,40 +806,43 @@ def convertStandartNode(rsMaterial, source):
 # unsupported utilities
 def convertUnsupportedNode(rsMaterial, source):
 
-	rpr = cmds.shadingNode("RPRArithmetic", asUtility=True)
-	rpr = cmds.rename(rpr, rsMaterial + "_UNSUPPORTED_NODE")
+	if cmds.objExists(rsMaterial + "_UNSUPPORTED_NODE"):
+		rpr = rsMaterial + "_UNSUPPORTED_NODE"
+	else:
+		rpr = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		rpr = cmds.rename(rpr, rsMaterial + "_UNSUPPORTED_NODE")
 
-	# Logging to file
-	start_log(rsMaterial, rpr)
+		# Logging to file
+		start_log(rsMaterial, rpr)
 
-	# 2 connection save
-	try:
-		setProperty(rpr, "operation", 0)
-		unsupported_connections = 0
-		for attr in cmds.listAttr(rsMaterial):
-			connection = cmds.listConnections(rsMaterial + "." + attr)
-			if connection:
-				if cmds.objectType(connection[0]) not in ("materialInfo", "defaultShaderList", "shadingEngine") and attr not in (source, "message"):
-					if unsupported_connections < 2:
-						obj, channel = cmds.connectionInfo(rsMaterial + "." + attr, sourceFromDestination=True).split('.')
-						source_name, source_attr = convertRSMaterial(obj, channel).split('.')
-						valueType = type(getProperty(rsMaterial, attr))
-						if valueType == tuple:
-							if unsupported_connections < 1:
-								connectProperty(source_name, source_attr, rpr, "inputA")
+		# 2 connection save
+		try:
+			setProperty(rpr, "operation", 0)
+			unsupported_connections = 0
+			for attr in cmds.listAttr(rsMaterial):
+				connection = cmds.listConnections(rsMaterial + "." + attr)
+				if connection:
+					if cmds.objectType(connection[0]) not in ("materialInfo", "defaultShaderList", "shadingEngine") and attr not in (source, "message"):
+						if unsupported_connections < 2:
+							obj, channel = cmds.connectionInfo(rsMaterial + "." + attr, sourceFromDestination=True).split('.')
+							source_name, source_attr = convertRSMaterial(obj, channel).split('.')
+							valueType = type(getProperty(rsMaterial, attr))
+							if valueType == tuple:
+								if unsupported_connections < 1:
+									connectProperty(source_name, source_attr, rpr, "inputA")
+								else:
+									connectProperty(source_name, source_attr, rpr, "inputB")
 							else:
-								connectProperty(source_name, source_attr, rpr, "inputB")
-						else:
-							if unsupported_connections < 1:
-								connectProperty(source_name, source_attr, rpr, "inputAX")
-							else:
-								connectProperty(source_name, source_attr, rpr, "inputBX")
-						unsupported_connections += 1
-	except Exception as ex:
-		traceback.print_exc()
+								if unsupported_connections < 1:
+									connectProperty(source_name, source_attr, rpr, "inputAX")
+								else:
+									connectProperty(source_name, source_attr, rpr, "inputBX")
+							unsupported_connections += 1
+		except Exception as ex:
+			traceback.print_exc()
 
-	# Logging to file
-	end_log(rsMaterial)
+		# Logging to file
+		end_log(rsMaterial)
 
 	sourceType = type(getProperty(rsMaterial, source))
 	if sourceType == tuple:
@@ -714,23 +858,26 @@ def convertUnsupportedMaterial(rsMaterial, source):
 
 	assigned = checkAssign(rsMaterial)
 	
-	# Creating new Uber material
-	rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
-	rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_UNSUPPORTED_MATERIAL"))
+	if cmds.objExists(rsMaterial + "_rpr"):
+		rprMaterial = rsMaterial + "_rpr"
+	else:
+		# Creating new Uber material
+		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_UNSUPPORTED_MATERIAL"))
 
-	# Check shading engine in rsMaterial
-	if assigned:
-		sg = rprMaterial + "SG"
-		cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-		connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
+		# Check shading engine in rsMaterial
+		if assigned:
+			sg = rprMaterial + "SG"
+			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
+			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
 
-	# Logging to file
-	start_log(rsMaterial, rprMaterial)
+		# Logging to file
+		start_log(rsMaterial, rprMaterial)
 
-	# set green color
-	setProperty(rprMaterial, "diffuseColor", (0, 1, 0))
+		# set green color
+		setProperty(rprMaterial, "diffuseColor", (0, 1, 0))
 
-	end_log(rsMaterial)
+		end_log(rsMaterial)
 
 	if not assigned:
 		rprMaterial += "." + source
@@ -745,255 +892,258 @@ def convertRedshiftArchitectural(rsMaterial, source):
 
 	assigned = checkAssign(rsMaterial)
 	
-	# Creating new Uber material
-	rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
-	rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
-
-	# Check shading engine in rsMaterial
-	if assigned:
-		sg = rprMaterial + "SG"
-		cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-		connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
-		
-	# Enable properties, which are default in RedShift
-	defaultEnable(rprMaterial, rsMaterial, "diffuse", "diffuse_weight")
-	defaultEnable(rprMaterial, rsMaterial, "reflections", "reflectivity")
-	defaultEnable(rprMaterial, rsMaterial, "refraction", "transparency")
-	defaultEnable(rprMaterial, rsMaterial, "emissive", "incandescent_scale")
-	defaultEnable(rprMaterial, rsMaterial, "clearCoat", "refl_base")
-
-	# Logging to file
-	start_log(rsMaterial, rprMaterial)
-
-	# diffuse
-	copyProperty(rprMaterial, rsMaterial, "diffuseColor", "diffuse") 
-	copyProperty(rprMaterial, rsMaterial, "diffuseWeight", "diffuse_weight")
-	copyProperty(rprMaterial, rsMaterial, "diffuseRoughness", "diffuse_roughness")
-	
-	# primary reflection (reflection)
-	
-	if not mapDoesNotExist(rsMaterial, "refl_color"):
-		connection = cmds.listConnections(rsMaterial + ".refl_color", type="file")
-		if connection:
-			setProperty(connection[0], "colorSpace", "Raw")
-	copyProperty(rprMaterial, rsMaterial, "reflectColor", "refl_color")
-	copyProperty(rprMaterial, rsMaterial, "reflectWeight", "reflectivity")
-
-	if getProperty(rsMaterial, "brdf_fresnel"):
-		ior = getProperty(rsMaterial, "brdf_fresnel_ior")
-		if ior > 10:
-			setProperty(rprMaterial, "reflectIOR", 10)
-		else:
-			setProperty(rprMaterial, "reflectIOR", ior)
+	if cmds.objExists(rsMaterial + "_rpr"):
+		rprMaterial = rsMaterial + "_rpr"
 	else:
-		refl = getProperty(rsMaterial, "brdf_0_degree_refl")
-		ior = -1 * (refl + 1 + 2 * math.sqrt(refl) / (refl - 1))
-		if ior > 10:
-			setProperty(rprMaterial, "reflectIOR", 10)
-		else:
-			setProperty(rprMaterial, "reflectIOR", ior)
+		# Creating new Uber material
+		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
 
-	if mapDoesNotExist(rsMaterial, "refl_gloss"):  
-		gloss = 1 - getProperty(rsMaterial, "refl_gloss")
-		setProperty(rprMaterial, "reflectRoughness", gloss)
-	else:
-		if cmds.objectType(cmds.listConnections(rsMaterial + ".refl_gloss")[0]) == "reverse":
-			copyProperty(rprMaterial, rsMaterial, "reflectRoughness", "refl_gloss")
-		else:
-			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic, "operation", 1)
-			setProperty(arithmetic, "inputA", (1, 1, 1))
-			copyProperty(arithmetic, rsMaterial, "inputBX", "refl_gloss")
-			connectProperty(arithmetic, "outX", rprMaterial, "reflectRoughness")
-
-	setProperty(rprMaterial, "reflectAnisotropy", getProperty(rsMaterial, "anisotropy") * 2)
-	copyProperty(rprMaterial, rsMaterial, "reflectAnisotropyRotation", "anisotropy_rotation")
-
-	setProperty(rprMaterial, "reflectMetalMaterial", getProperty(rsMaterial, "refl_is_metal"))
-
-	brdf_fresnel_type = getProperty(rsMaterial, "brdf_fresnel_type")
-	if brdf_fresnel_type: # conductor
-		brdf_extinction_coeff = getProperty(rsMaterial, "brdf_extinction_coeff")
-		if brdf_extinction_coeff > 2:
-			setProperty(rprMaterial, "reflectMetalMaterial", 1)
-			setProperty(rprMaterial, "reflectMetalness", 1)
-
-			if mapDoesNotExist(rsMaterial, "diffuse_weight"):
-				setProperty(rprMaterial, "diffuseWeight", 0)
-			if mapDoesNotExist(rsMaterial, "reflectivity"):
-				setProperty(rprMaterial, "reflectWeight", 1)
-
-			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			copyProperty(arithmetic, rsMaterial, "inputA", "diffuse")
-			if not mapDoesNotExist(rsMaterial, "refl_color"):
-				connection = cmds.listConnections(rsMaterial + ".refl_color", type="file")
-				if connection:
-					setProperty(connection[0], "colorSpace", "Raw")
-			copyProperty(arithmetic, rsMaterial, "inputB", "refl_color")
-			setProperty(arithmetic, "operation", 20)
-			connectProperty(arithmetic, "out", rprMaterial, "reflectColor")
-
-	# sec reflection (Coat)
-	copyProperty(rprMaterial, rsMaterial, "coatWeight", "refl_base") 
-	copyProperty(rprMaterial, rsMaterial, "coatColor", "refl_base_color")
-
-	if mapDoesNotExist(rsMaterial, "refl_base_gloss"):  
-		gloss = 1 - getProperty(rsMaterial, "refl_base_gloss")
-		setProperty(rprMaterial, "coatRoughness", gloss)
-	else:
-		if cmds.objectType(cmds.listConnections(rsMaterial, "refl_base_gloss")[0]) == "reverse":
-			copyProperty(rprMaterial, rsMaterial, "refl_base_gloss", "coatRoughness")
-		else:
-			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic, "operation", 1)
-			setProperty(arithmetic, "inputA", (1, 1, 1))
-			copyProperty(arithmetic, rsMaterial, "inputBX", "refl_base_gloss")
-			connectProperty(arithmetic, "outX", rprMaterial, "coatRoughness")
-
-	if getProperty(rsMaterial, "brdf_base_fresnel"):
-		if getProperty(rsMaterial, "brdf_base_fresnel_type"):
-			coat_ior = getProperty(rsMaterial, "brdf_base_fresnel_ior") + getProperty(rsMaterial, "brdf_base_extinction_coeff")
-		else:
-			coat_ior = getProperty(rsMaterial, "brdf_base_fresnel_ior")
-
-		if coat_ior > 10:
-			setProperty(rprMaterial, "coatIor", 10)
-		else:
-			setProperty(rprMaterial, "coatIor", coat_ior)
-	else:
-		refl = getProperty(rsMaterial, "brdf_base_0_degree_refl")
-		ior = -1 * (refl + 1 + 2 * math.sqrt(refl) / (refl - 1))
-		if ior > 10:
-			setProperty(rprMaterial, "coatIor", 10)
-		else:
-			setProperty(rprMaterial, "coatIor", ior)
-		
-	# refraction
-	copyProperty(rprMaterial, rsMaterial, "refractColor", "refr_color")
-	copyProperty(rprMaterial, rsMaterial, "refractWeight", "transparency")
-	copyProperty(rprMaterial, rsMaterial, "refractThinSurface", "thin_walled")
-	copyProperty(rprMaterial, rsMaterial, "refractIor", "refr_ior")
-
-	if mapDoesNotExist(rsMaterial, "refr_gloss"):   
-		gloss = 1 - getProperty(rsMaterial, "refr_gloss")
-		setProperty(rprMaterial, "refractRoughness", gloss)
-	else:
-		if cmds.objectType(cmds.listConnections(rsMaterial, "refr_gloss")[0]) == "reverse":
-			copyProperty(rprMaterial, rsMaterial, "refr_gloss", "refractRoughness")
-		else:
-			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic, "operation", 1)
-			setProperty(arithmetic, "inputA", (1, 1, 1))
-			copyProperty(arithmetic, rsMaterial, "inputBX", "refr_gloss")
-			connectProperty(arithmetic, "outX", rprMaterial, "refractRoughness")
+		# Check shading engine in rsMaterial
+		if assigned:
+			sg = rprMaterial + "SG"
+			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
+			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
 			
-	fog_enable = getProperty(rsMaterial, "refr_falloff_on")
-	if fog_enable:
-		copyProperty(rprMaterial, rsMaterial, "refractAbsorptionDistance", "refr_falloff_dist")
-	
-	end_color_enable = getProperty(rsMaterial, "refr_falloff_color_on")
-	if end_color_enable:
-		copyProperty(rprMaterial, rsMaterial, "refractAbsorbColor", "refr_falloff_color") 
-	else: 
-		copyProperty(rprMaterial, rsMaterial, "refractAbsorbColor", "refr_color")
-	
-	setProperty(rprMaterial, "refractAllowCaustics", getProperty(rsMaterial, "do_refractive_caustics"))
+		# Enable properties, which are default in RedShift
+		defaultEnable(rprMaterial, rsMaterial, "diffuse", "diffuse_weight")
+		defaultEnable(rprMaterial, rsMaterial, "reflections", "reflectivity")
+		defaultEnable(rprMaterial, rsMaterial, "refraction", "transparency")
+		defaultEnable(rprMaterial, rsMaterial, "emissive", "incandescent_scale")
+		defaultEnable(rprMaterial, rsMaterial, "clearCoat", "refl_base")
+
+		# Logging to file
+		start_log(rsMaterial, rprMaterial)
+
+		# diffuse
+		copyProperty(rprMaterial, rsMaterial, "diffuseColor", "diffuse") 
+		copyProperty(rprMaterial, rsMaterial, "diffuseWeight", "diffuse_weight")
+		copyProperty(rprMaterial, rsMaterial, "diffuseRoughness", "diffuse_roughness")
 		
-	# emissive
-	copyProperty(rprMaterial, rsMaterial, "emissiveColor", "additional_color")
-	copyProperty(rprMaterial, rsMaterial, "emissiveWeight", "incandescent_scale")
+		# primary reflection (reflection)
+		
+		if not mapDoesNotExist(rsMaterial, "refl_color"):
+			connection = cmds.listConnections(rsMaterial + ".refl_color", type="file")
+			if connection:
+				setProperty(connection[0], "colorSpace", "Raw")
+		copyProperty(rprMaterial, rsMaterial, "reflectColor", "refl_color")
+		copyProperty(rprMaterial, rsMaterial, "reflectWeight", "reflectivity")
 
-	if getProperty(rsMaterial, "refr_translucency"):
-		setProperty(rprMaterial, "separateBackscatterColor", 1)
-
-		if mapDoesNotExist(rsMaterial, "refr_trans_weight"):
-			if mapDoesNotExist(rsMaterial, "refr_trans_color"):
-				transl_weight = getProperty(rsMaterial, "refr_trans_weight")
-				transl_color = getProperty(rsMaterial, "refr_trans_color")
-				avg_color = sum(transl_color) / 3.0
-				if transl_weight <= 0.5:
-					if avg_color < transl_weight:
-						backscatteringWeight = avg_color
-					else:
-						backscatteringWeight = transl_weight
-				elif transl_weight > 0.5:
-					if avg_color < transl_weight and avg_color * 2 <= 1:
-						backscatteringWeight = avg_color * 2
-					elif transl_weight * 2 <= 1:
-						backscatteringWeight = transl_weight * 2
-					else:
-						backscatteringWeight = 1
-
-				if mapDoesNotExist(rsMaterial, "cutout_opacity"):
-					setProperty(rprMaterial, "backscatteringWeight", backscatteringWeight)
-				else:
-					arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-					setProperty(arithmetic, "operation", 2)
-					setProperty(arithmetic, "inputAX", backscatteringWeight)
-					copyProperty(arithmetic, rsMaterial, "inputBX", "cutout_opacity")
-					connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
-
+		if getProperty(rsMaterial, "brdf_fresnel"):
+			ior = getProperty(rsMaterial, "brdf_fresnel_ior")
+			if ior > 10:
+				setProperty(rprMaterial, "reflectIOR", 10)
 			else:
-				if mapDoesNotExist(rsMaterial, "cutout_opacity"):
-					setProperty(rprMaterial, "backscatteringWeight", 0.5 * getProperty(rsMaterial, "refr_trans_weight"))
-				else:
-					arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-					setProperty(arithmetic, "operation", 2)
-					copyProperty(arithmetic, rsMaterial, "inputAX", "refr_trans_weight")
-					copyProperty(arithmetic, rsMaterial, "inputBX", "cutout_opacity")
-					connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
+				setProperty(rprMaterial, "reflectIOR", ior)
 		else:
-			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic, "operation", 2)
-			copyProperty(arithmetic, rsMaterial, "inputAX", "refr_trans_weight")
+			refl = getProperty(rsMaterial, "brdf_0_degree_refl")
+			ior = -1 * (refl + 1 + 2 * math.sqrt(refl) / (refl - 1))
+			if ior > 10:
+				setProperty(rprMaterial, "reflectIOR", 10)
+			else:
+				setProperty(rprMaterial, "reflectIOR", ior)
+
+		if mapDoesNotExist(rsMaterial, "refl_gloss"):  
+			gloss = 1 - getProperty(rsMaterial, "refl_gloss")
+			setProperty(rprMaterial, "reflectRoughness", gloss)
+		else:
+			if cmds.objectType(cmds.listConnections(rsMaterial + ".refl_gloss")[0]) == "reverse":
+				copyProperty(rprMaterial, rsMaterial, "reflectRoughness", "refl_gloss")
+			else:
+				arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arithmetic, "operation", 1)
+				setProperty(arithmetic, "inputA", (1, 1, 1))
+				copyProperty(arithmetic, rsMaterial, "inputBX", "refl_gloss")
+				connectProperty(arithmetic, "outX", rprMaterial, "reflectRoughness")
+
+		setProperty(rprMaterial, "reflectAnisotropy", getProperty(rsMaterial, "anisotropy") * 2)
+		copyProperty(rprMaterial, rsMaterial, "reflectAnisotropyRotation", "anisotropy_rotation")
+
+		setProperty(rprMaterial, "reflectMetalMaterial", getProperty(rsMaterial, "refl_is_metal"))
+
+		brdf_fresnel_type = getProperty(rsMaterial, "brdf_fresnel_type")
+		if brdf_fresnel_type: # conductor
+			brdf_extinction_coeff = getProperty(rsMaterial, "brdf_extinction_coeff")
+			if brdf_extinction_coeff > 2:
+				setProperty(rprMaterial, "reflectMetalMaterial", 1)
+				setProperty(rprMaterial, "reflectMetalness", 1)
+
+				if mapDoesNotExist(rsMaterial, "diffuse_weight"):
+					setProperty(rprMaterial, "diffuseWeight", 0)
+				if mapDoesNotExist(rsMaterial, "reflectivity"):
+					setProperty(rprMaterial, "reflectWeight", 1)
+
+				arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				copyProperty(arithmetic, rsMaterial, "inputA", "diffuse")
+				if not mapDoesNotExist(rsMaterial, "refl_color"):
+					connection = cmds.listConnections(rsMaterial + ".refl_color", type="file")
+					if connection:
+						setProperty(connection[0], "colorSpace", "Raw")
+				copyProperty(arithmetic, rsMaterial, "inputB", "refl_color")
+				setProperty(arithmetic, "operation", 20)
+				connectProperty(arithmetic, "out", rprMaterial, "reflectColor")
+
+		# sec reflection (Coat)
+		copyProperty(rprMaterial, rsMaterial, "coatWeight", "refl_base") 
+		copyProperty(rprMaterial, rsMaterial, "coatColor", "refl_base_color")
+
+		if mapDoesNotExist(rsMaterial, "refl_base_gloss"):  
+			gloss = 1 - getProperty(rsMaterial, "refl_base_gloss")
+			setProperty(rprMaterial, "coatRoughness", gloss)
+		else:
+			if cmds.objectType(cmds.listConnections(rsMaterial, "refl_base_gloss")[0]) == "reverse":
+				copyProperty(rprMaterial, rsMaterial, "refl_base_gloss", "coatRoughness")
+			else:
+				arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arithmetic, "operation", 1)
+				setProperty(arithmetic, "inputA", (1, 1, 1))
+				copyProperty(arithmetic, rsMaterial, "inputBX", "refl_base_gloss")
+				connectProperty(arithmetic, "outX", rprMaterial, "coatRoughness")
+
+		if getProperty(rsMaterial, "brdf_base_fresnel"):
+			if getProperty(rsMaterial, "brdf_base_fresnel_type"):
+				coat_ior = getProperty(rsMaterial, "brdf_base_fresnel_ior") + getProperty(rsMaterial, "brdf_base_extinction_coeff")
+			else:
+				coat_ior = getProperty(rsMaterial, "brdf_base_fresnel_ior")
+
+			if coat_ior > 10:
+				setProperty(rprMaterial, "coatIor", 10)
+			else:
+				setProperty(rprMaterial, "coatIor", coat_ior)
+		else:
+			refl = getProperty(rsMaterial, "brdf_base_0_degree_refl")
+			ior = -1 * (refl + 1 + 2 * math.sqrt(refl) / (refl - 1))
+			if ior > 10:
+				setProperty(rprMaterial, "coatIor", 10)
+			else:
+				setProperty(rprMaterial, "coatIor", ior)
+			
+		# refraction
+		copyProperty(rprMaterial, rsMaterial, "refractColor", "refr_color")
+		copyProperty(rprMaterial, rsMaterial, "refractWeight", "transparency")
+		copyProperty(rprMaterial, rsMaterial, "refractThinSurface", "thin_walled")
+		copyProperty(rprMaterial, rsMaterial, "refractIor", "refr_ior")
+
+		if mapDoesNotExist(rsMaterial, "refr_gloss"):   
+			gloss = 1 - getProperty(rsMaterial, "refr_gloss")
+			setProperty(rprMaterial, "refractRoughness", gloss)
+		else:
+			if cmds.objectType(cmds.listConnections(rsMaterial, "refr_gloss")[0]) == "reverse":
+				copyProperty(rprMaterial, rsMaterial, "refr_gloss", "refractRoughness")
+			else:
+				arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arithmetic, "operation", 1)
+				setProperty(arithmetic, "inputA", (1, 1, 1))
+				copyProperty(arithmetic, rsMaterial, "inputBX", "refr_gloss")
+				connectProperty(arithmetic, "outX", rprMaterial, "refractRoughness")
+				
+		fog_enable = getProperty(rsMaterial, "refr_falloff_on")
+		if fog_enable:
+			copyProperty(rprMaterial, rsMaterial, "refractAbsorptionDistance", "refr_falloff_dist")
+		
+		end_color_enable = getProperty(rsMaterial, "refr_falloff_color_on")
+		if end_color_enable:
+			copyProperty(rprMaterial, rsMaterial, "refractAbsorbColor", "refr_falloff_color") 
+		else: 
+			copyProperty(rprMaterial, rsMaterial, "refractAbsorbColor", "refr_color")
+		
+		setProperty(rprMaterial, "refractAllowCaustics", getProperty(rsMaterial, "do_refractive_caustics"))
+			
+		# emissive
+		copyProperty(rprMaterial, rsMaterial, "emissiveColor", "additional_color")
+		copyProperty(rprMaterial, rsMaterial, "emissiveWeight", "incandescent_scale")
+
+		if getProperty(rsMaterial, "refr_translucency"):
+			setProperty(rprMaterial, "separateBackscatterColor", 1)
+
+			if mapDoesNotExist(rsMaterial, "refr_trans_weight"):
+				if mapDoesNotExist(rsMaterial, "refr_trans_color"):
+					transl_weight = getProperty(rsMaterial, "refr_trans_weight")
+					transl_color = getProperty(rsMaterial, "refr_trans_color")
+					avg_color = sum(transl_color) / 3.0
+					if transl_weight <= 0.5:
+						if avg_color < transl_weight:
+							backscatteringWeight = avg_color
+						else:
+							backscatteringWeight = transl_weight
+					elif transl_weight > 0.5:
+						if avg_color < transl_weight and avg_color * 2 <= 1:
+							backscatteringWeight = avg_color * 2
+						elif transl_weight * 2 <= 1:
+							backscatteringWeight = transl_weight * 2
+						else:
+							backscatteringWeight = 1
+
+					if mapDoesNotExist(rsMaterial, "cutout_opacity"):
+						setProperty(rprMaterial, "backscatteringWeight", backscatteringWeight)
+					else:
+						arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+						setProperty(arithmetic, "operation", 2)
+						setProperty(arithmetic, "inputAX", backscatteringWeight)
+						copyProperty(arithmetic, rsMaterial, "inputBX", "cutout_opacity")
+						connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
+
+				else:
+					if mapDoesNotExist(rsMaterial, "cutout_opacity"):
+						setProperty(rprMaterial, "backscatteringWeight", 0.5 * getProperty(rsMaterial, "refr_trans_weight"))
+					else:
+						arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+						setProperty(arithmetic, "operation", 2)
+						copyProperty(arithmetic, rsMaterial, "inputAX", "refr_trans_weight")
+						copyProperty(arithmetic, rsMaterial, "inputBX", "cutout_opacity")
+						connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
+			else:
+				arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arithmetic, "operation", 2)
+				copyProperty(arithmetic, rsMaterial, "inputAX", "refr_trans_weight")
+				if mapDoesNotExist(rsMaterial, "cutout_opacity"):
+					setProperty(arithmetic, "inputB", (0.5, 0.5, 0.5))
+				else:
+					copyProperty(arithmetic, rsMaterial, "inputB", "cutout_opacity")
+				connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
+
+			# trans color
+			arithmetic1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic1, "operation", 2)
+			copyProperty(arithmetic1, rsMaterial, "inputA", "refr_trans_color")
+			setProperty(arithmetic1, "inputB", (2.2, 2.2, 2.2))
+
+			arithmetic2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic2, "operation", 2)
+			copyProperty(arithmetic2, rsMaterial, "inputA", "diffuse")
+			setProperty(arithmetic2, "inputB", (2.2, 2.2, 2.2))
+
+			arithmetic3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic3, "operation", 20)
+			connectProperty(arithmetic1, "out", arithmetic3, "inputA")
+			connectProperty(arithmetic2, "out", arithmetic3, "inputB")
+
+			connectProperty(arithmetic3, "out", rprMaterial, "backscatteringColor")
+
+		opacity = getProperty(rsMaterial, "cutout_opacity")
+		if not opacity:
 			if mapDoesNotExist(rsMaterial, "cutout_opacity"):
-				setProperty(arithmetic, "inputB", (0.5, 0.5, 0.5))
+				transparency = 1 - getProperty(rsMaterial, "cutout_opacity")
+				setProperty(rprMaterial, "transparencyLevel", transparency)
 			else:
-				copyProperty(arithmetic, rsMaterial, "inputB", "cutout_opacity")
-			connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
+				arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arithmetic, "operation", 1)
+				setProperty(arithmetic, "inputA", (1, 1, 1))
+				copyProperty(arithmetic, rsMaterial, "inputBX", "cutout_opacity")
+				connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
+			setProperty(rprMaterial, "transparencyEnable", 1)
 
-		# trans color
-		arithmetic1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(arithmetic1, "operation", 2)
-		copyProperty(arithmetic1, rsMaterial, "inputA", "refr_trans_color")
-		setProperty(arithmetic1, "inputB", (2.2, 2.2, 2.2))
-
-		arithmetic2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(arithmetic2, "operation", 2)
-		copyProperty(arithmetic2, rsMaterial, "inputA", "diffuse")
-		setProperty(arithmetic2, "inputB", (2.2, 2.2, 2.2))
-
-		arithmetic3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(arithmetic3, "operation", 20)
-		connectProperty(arithmetic1, "out", arithmetic3, "inputA")
-		connectProperty(arithmetic2, "out", arithmetic3, "inputB")
-
-		connectProperty(arithmetic3, "out", rprMaterial, "backscatteringColor")
-
-	opacity = getProperty(rsMaterial, "cutout_opacity")
-	if not opacity:
-		if mapDoesNotExist(rsMaterial, "cutout_opacity"):
-			transparency = 1 - getProperty(rsMaterial, "cutout_opacity")
-			setProperty(rprMaterial, "transparencyLevel", transparency)
-		else:
-			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic, "operation", 1)
-			setProperty(arithmetic, "inputA", (1, 1, 1))
-			copyProperty(arithmetic, rsMaterial, "inputBX", "cutout_opacity")
-			connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
-		setProperty(rprMaterial, "transparencyEnable", 1)
-
-	bumpConnections = cmds.listConnections(rsMaterial + ".bump_input")
-	if bumpConnections:
-		setProperty(rprMaterial, "normalMapEnable", 1)
-		copyProperty(rprMaterial, rsMaterial, "normalMap", "bump_input")
-		setProperty(rprMaterial, "useShaderNormal", not getProperty(rsMaterial, "no_diffuse_bump"))
-		setProperty(rprMaterial, "reflectUseShaderNormal", not getProperty(rsMaterial, "no_refl0_bump"))
-		setProperty(rprMaterial, "refractUseShaderNormal", not getProperty(rsMaterial, "no_refr_bump"))
-		setProperty(rprMaterial, "coatUseShaderNormal", not getProperty(rsMaterial, "no_refl1_bump"))
-			
-	# Logging in file
-	end_log(rsMaterial)
+		bumpConnections = cmds.listConnections(rsMaterial + ".bump_input")
+		if bumpConnections:
+			setProperty(rprMaterial, "normalMapEnable", 1)
+			copyProperty(rprMaterial, rsMaterial, "normalMap", "bump_input")
+			setProperty(rprMaterial, "useShaderNormal", not getProperty(rsMaterial, "no_diffuse_bump"))
+			setProperty(rprMaterial, "reflectUseShaderNormal", not getProperty(rsMaterial, "no_refl0_bump"))
+			setProperty(rprMaterial, "refractUseShaderNormal", not getProperty(rsMaterial, "no_refr_bump"))
+			setProperty(rprMaterial, "coatUseShaderNormal", not getProperty(rsMaterial, "no_refl1_bump"))
+				
+		# Logging in file
+		end_log(rsMaterial)
 
 	if not assigned:
 		rprMaterial += "." + source
@@ -1008,56 +1158,59 @@ def convertRedshiftSprite(rsMaterial, source):
 
 	assigned = checkAssign(rsMaterial)
 	
-	# Creating new Uber material
-	input_material = cmds.listConnections(rsMaterial + ".input")[0]
-	rprMaterial = convertRedshiftMaterial(input_material, "")[0:-1]
-	sg = rprMaterial + "SG"
-	cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-	connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
-		
-	# Logging to file
-	start_log(rsMaterial, rprMaterial)
+	if cmds.objExists(rsMaterial + "_rpr"):
+		rprMaterial = rsMaterial + "_rpr"
+	else:
+		# Creating new Uber material
+		input_material = cmds.listConnections(rsMaterial + ".input")[0]
+		rprMaterial = convertRedshiftMaterial(input_material, "")[0:-1]
+		sg = rprMaterial + "SG"
+		cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
+		connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
+			
+		# Logging to file
+		start_log(rsMaterial, rprMaterial)
 
-	# Fields conversion
+		# Fields conversion
 
-	# convert map
-	if getProperty(rsMaterial, "tex0"):
+		# convert map
+		if getProperty(rsMaterial, "tex0"):
 
-		file = cmds.shadingNode("file", asTexture=True, isColorManaged=True)
-		texture = cmds.shadingNode("place2dTexture", asUtility=True)
+			file = cmds.shadingNode("file", asTexture=True, isColorManaged=True)
+			texture = cmds.shadingNode("place2dTexture", asUtility=True)
 
-		connectProperty(texture, "coverage", file, "coverage")
-		connectProperty(texture, "translateFrame", file, "translateFrame")
-		connectProperty(texture, "rotateFrame", file, "rotateFrame")
-		connectProperty(texture, "mirrorU", file, "mirrorU")
-		connectProperty(texture, "mirrorV", file, "mirrorV")
-		connectProperty(texture, "stagger", file, "stagger")
-		connectProperty(texture, "wrapU", file, "wrapU")
-		connectProperty(texture, "wrapV", file, "wrapV")
-		connectProperty(texture, "repeatUV", file, "repeatUV")
-		connectProperty(texture, "offset", file, "offset")
-		connectProperty(texture, "rotateUV", file, "rotateUV")
-		connectProperty(texture, "noiseUV", file, "noiseUV")
-		connectProperty(texture, "vertexUvOne", file, "vertexUvOne")
-		connectProperty(texture, "vertexUvTwo", file, "vertexUvTwo")
-		connectProperty(texture, "vertexUvThree", file, "vertexUvThree")
-		connectProperty(texture, "vertexCameraOne", file, "vertexCameraOne")
-		connectProperty(texture, "outUV", file, "uv")
-		connectProperty(texture, "outUvFilterSize", file, "uvFilterSize")
-		copyProperty(texture, rsMaterial, "repeatU", "repeats0")
-		copyProperty(texture, rsMaterial, "repeatV", "repeats1")
+			connectProperty(texture, "coverage", file, "coverage")
+			connectProperty(texture, "translateFrame", file, "translateFrame")
+			connectProperty(texture, "rotateFrame", file, "rotateFrame")
+			connectProperty(texture, "mirrorU", file, "mirrorU")
+			connectProperty(texture, "mirrorV", file, "mirrorV")
+			connectProperty(texture, "stagger", file, "stagger")
+			connectProperty(texture, "wrapU", file, "wrapU")
+			connectProperty(texture, "wrapV", file, "wrapV")
+			connectProperty(texture, "repeatUV", file, "repeatUV")
+			connectProperty(texture, "offset", file, "offset")
+			connectProperty(texture, "rotateUV", file, "rotateUV")
+			connectProperty(texture, "noiseUV", file, "noiseUV")
+			connectProperty(texture, "vertexUvOne", file, "vertexUvOne")
+			connectProperty(texture, "vertexUvTwo", file, "vertexUvTwo")
+			connectProperty(texture, "vertexUvThree", file, "vertexUvThree")
+			connectProperty(texture, "vertexCameraOne", file, "vertexCameraOne")
+			connectProperty(texture, "outUV", file, "uv")
+			connectProperty(texture, "outUvFilterSize", file, "uvFilterSize")
+			copyProperty(texture, rsMaterial, "repeatU", "repeats0")
+			copyProperty(texture, rsMaterial, "repeatV", "repeats1")
 
-		setProperty(file, "fileTextureName", getProperty(rsMaterial, "tex0"))
-		arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(arithmetic, "operation", 1)
-		setProperty(arithmetic, "inputA", (1, 1, 1))
-		connectProperty(file, "outColor", arithmetic, "inputB")
-		connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")	
-		setProperty(rprMaterial, "transparencyEnable", 1)
+			setProperty(file, "fileTextureName", getProperty(rsMaterial, "tex0"))
+			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic, "operation", 1)
+			setProperty(arithmetic, "inputA", (1, 1, 1))
+			connectProperty(file, "outColor", arithmetic, "inputB")
+			connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")	
+			setProperty(rprMaterial, "transparencyEnable", 1)
 
 
-	# Logging in file
-	end_log(rsMaterial)
+		# Logging in file
+		end_log(rsMaterial)
 
 	if not assigned:
 		rprMaterial += "." + source
@@ -1072,34 +1225,37 @@ def convertRedshiftCarPaint(rsMaterial, source):
 
 	assigned = checkAssign(rsMaterial)
 	
-	# Creating new Uber material
-	rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
-	rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
+	if cmds.objExists(rsMaterial + "_rpr"):
+		rprMaterial = rsMaterial + "_rpr"
+	else:
+		# Creating new Uber material
+		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
 
-	# Check shading engine in rsMaterial
-	if assigned:
-		sg = rprMaterial + "SG"
-		cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-		connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
+		# Check shading engine in rsMaterial
+		if assigned:
+			sg = rprMaterial + "SG"
+			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
+			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
 
-	# Enable properties, which are default in RedShift
-	defaultEnable(rprMaterial, rsMaterial, "diffuse", "diffuse_weight")
-	defaultEnable(rprMaterial, rsMaterial, "reflections", "spec_weight")
-	defaultEnable(rprMaterial, rsMaterial, "clearCoat", "clearcoat_weight")
+		# Enable properties, which are default in RedShift
+		defaultEnable(rprMaterial, rsMaterial, "diffuse", "diffuse_weight")
+		defaultEnable(rprMaterial, rsMaterial, "reflections", "spec_weight")
+		defaultEnable(rprMaterial, rsMaterial, "clearCoat", "clearcoat_weight")
 
-	# Logging to file
-	start_log(rsMaterial, rprMaterial)
+		# Logging to file
+		start_log(rsMaterial, rprMaterial)
 
-	# Fields conversion
-	copyProperty(rprMaterial, rsMaterial, "diffuseColor", "base_color")
-	copyProperty(rprMaterial, rsMaterial, "diffuseWeight", "diffuse_weight")
-	copyProperty(rprMaterial, rsMaterial, "reflectColor", "spec_color")
-	copyProperty(rprMaterial, rsMaterial, "reflectWeight", "spec_weight")
-	copyProperty(rprMaterial, rsMaterial, "coatColor", "clearcoat_color")
-	copyProperty(rprMaterial, rsMaterial, "coatWeight", "clearcoat_weight")
+		# Fields conversion
+		copyProperty(rprMaterial, rsMaterial, "diffuseColor", "base_color")
+		copyProperty(rprMaterial, rsMaterial, "diffuseWeight", "diffuse_weight")
+		copyProperty(rprMaterial, rsMaterial, "reflectColor", "spec_color")
+		copyProperty(rprMaterial, rsMaterial, "reflectWeight", "spec_weight")
+		copyProperty(rprMaterial, rsMaterial, "coatColor", "clearcoat_color")
+		copyProperty(rprMaterial, rsMaterial, "coatWeight", "clearcoat_weight")
 
-	# Logging in file
-	end_log(rsMaterial)
+		# Logging in file
+		end_log(rsMaterial)
 
 	if not assigned:
 		rprMaterial += "." + source
@@ -1114,99 +1270,102 @@ def convertRedshiftIncandescent(rsMaterial, source):
 
 	assigned = checkAssign(rsMaterial)
 	
-	# Creating new Uber material
-	rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
-	rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
+	if cmds.objExists(rsMaterial + "_rpr"):
+		rprMaterial = rsMaterial + "_rpr"
+	else:
+		# Creating new Uber material
+		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
 
-	# Check shading engine in rsMaterial
-	if assigned:
-		sg = rprMaterial + "SG"
-		cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-		connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
+		# Check shading engine in rsMaterial
+		if assigned:
+			sg = rprMaterial + "SG"
+			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
+			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
 
-	# Enable properties, which are default in RedShift
-	setProperty(rprMaterial, "diffuse", 0)
-	defaultEnable(rprMaterial, rsMaterial, "emissive", "intensity")
+		# Enable properties, which are default in RedShift
+		setProperty(rprMaterial, "diffuse", 0)
+		defaultEnable(rprMaterial, rsMaterial, "emissive", "intensity")
 
-	# Logging to file
-	start_log(rsMaterial, rprMaterial)
+		# Logging to file
+		start_log(rsMaterial, rprMaterial)
 
-	# Fields conversion
-	copyProperty(rprMaterial, rsMaterial, "emissiveIntensity", "intensity")
-	copyProperty(rprMaterial, rsMaterial, "emissiveWeight", "alpha")
+		# Fields conversion
+		copyProperty(rprMaterial, rsMaterial, "emissiveIntensity", "intensity")
+		copyProperty(rprMaterial, rsMaterial, "emissiveWeight", "alpha")
 
-	setProperty(rprMaterial, "emissiveDoubleSided", getProperty(rsMaterial, "doublesided"))
+		setProperty(rprMaterial, "emissiveDoubleSided", getProperty(rsMaterial, "doublesided"))
 
-	if mapDoesNotExist(rsMaterial, "alpha"):
-		if getProperty(rsMaterial, "alpha") != 1:
-			transparency = 1 - getProperty(rsMaterial, "alpha")
-			setProperty(rprMaterial, "transparencyLevel", transparency)
+		if mapDoesNotExist(rsMaterial, "alpha"):
+			if getProperty(rsMaterial, "alpha") != 1:
+				transparency = 1 - getProperty(rsMaterial, "alpha")
+				setProperty(rprMaterial, "transparencyLevel", transparency)
+				setProperty(rprMaterial, "transparencyEnable", 1)
+		else:
+			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic, "operation", 1)
+			setProperty(arithmetic, "inputA", (1, 1, 1))
+			copyProperty(arithmetic, rsMaterial, "inputBX", "alpha")
+			connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
 			setProperty(rprMaterial, "transparencyEnable", 1)
-	else:
-		arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(arithmetic, "operation", 1)
-		setProperty(arithmetic, "inputA", (1, 1, 1))
-		copyProperty(arithmetic, rsMaterial, "inputBX", "alpha")
-		connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
-		setProperty(rprMaterial, "transparencyEnable", 1)
-	
+		
 
-	# converting temperature to emissive color
-	# no_rpr_analog
-	color_mode = getProperty(rsMaterial, "colorMode")
-	if color_mode:
-		temperature = getProperty(rsMaterial, "temperature") / 100
+		# converting temperature to emissive color
+		# no_rpr_analog
+		color_mode = getProperty(rsMaterial, "colorMode")
+		if color_mode:
+			temperature = getProperty(rsMaterial, "temperature") / 100
 
-		if temperature <= 66:
-			colorR = 255
-		else:
-			colorR = temperature - 60
-			colorR = 329.698727446 * colorR ** -0.1332047592
-			if colorR < 0:
-				colorR = 0
-			if colorR > 255:
+			if temperature <= 66:
 				colorR = 255
+			else:
+				colorR = temperature - 60
+				colorR = 329.698727446 * colorR ** -0.1332047592
+				if colorR < 0:
+					colorR = 0
+				if colorR > 255:
+					colorR = 255
 
 
-		if temperature <= 66:
-			colorG = temperature
-			colorG = 99.4708025861 * math.log(colorG) - 161.1195681661
-			if colorG < 0:
-				colorG = 0
-			if colorG > 255:
-				colorG = 255
-		else:
-			colorG = temperature - 60
-			colorG = 288.1221695283 * colorG ** -0.0755148492
-			if colorG < 0:
-				colorG = 0
-			if colorG > 255:
-				colorG = 255
+			if temperature <= 66:
+				colorG = temperature
+				colorG = 99.4708025861 * math.log(colorG) - 161.1195681661
+				if colorG < 0:
+					colorG = 0
+				if colorG > 255:
+					colorG = 255
+			else:
+				colorG = temperature - 60
+				colorG = 288.1221695283 * colorG ** -0.0755148492
+				if colorG < 0:
+					colorG = 0
+				if colorG > 255:
+					colorG = 255
 
 
-		if temperature >= 66:
-			colorB = 255
-		elif temperature <= 19:
-			colorB = 0
-		else:
-			colorB = temperature - 10
-			colorB = 138.5177312231 * math.log(colorB) - 305.0447927307
-			if colorB < 0:
-				colorB = 0
-			if colorB > 255:
+			if temperature >= 66:
 				colorB = 255
+			elif temperature <= 19:
+				colorB = 0
+			else:
+				colorB = temperature - 10
+				colorB = 138.5177312231 * math.log(colorB) - 305.0447927307
+				if colorB < 0:
+					colorB = 0
+				if colorB > 255:
+					colorB = 255
 
-		colorR = colorR / 255
-		colorG = colorG / 255
-		colorB = colorB / 255
+			colorR = colorR / 255
+			colorG = colorG / 255
+			colorB = colorB / 255
 
-		setProperty(rprMaterial, "emissiveColor", (colorR, colorG, colorB))
+			setProperty(rprMaterial, "emissiveColor", (colorR, colorG, colorB))
 
-	else:
-		copyProperty(rprMaterial, rsMaterial, "emissiveColor", "color")
+		else:
+			copyProperty(rprMaterial, rsMaterial, "emissiveColor", "color")
 
-	# Logging to file
-	end_log(rsMaterial)
+		# Logging to file
+		end_log(rsMaterial)
 
 	if not assigned:
 		rprMaterial += "." + source
@@ -1232,387 +1391,390 @@ def convertRedshiftMaterial(rsMaterial, source):
 					convertRedshiftBumpBlender(connection[0], "bump_input")
 					return
 
-	# Creating new Uber material
-	rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
-	rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
+	if cmds.objExists(rsMaterial + "_rpr"):
+		rprMaterial = rsMaterial + "_rpr"
+	else:
+		# Creating new Uber material
+		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
 
-	# Check shading engine in rsMaterial
-	if assigned:
-		sg = rprMaterial + "SG"
-		cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-		connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
+		# Check shading engine in rsMaterial
+		if assigned:
+			sg = rprMaterial + "SG"
+			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
+			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
 
-		rs_materialSG = cmds.listConnections(rsMaterial, type="shadingEngine")
-		convertDisplacement(rs_materialSG, rprMaterial)
+			rs_materialSG = cmds.listConnections(rsMaterial, type="shadingEngine")
+			convertDisplacement(rs_materialSG, rprMaterial)
 
-	# Enable properties, which are default in RedShift.
-	defaultEnable(rprMaterial, rsMaterial, "diffuse", "diffuse_weight")
-	defaultEnable(rprMaterial, rsMaterial, "reflections", "refl_weight")
-	defaultEnable(rprMaterial, rsMaterial, "refraction", "refr_weight")
-	defaultEnable(rprMaterial, rsMaterial, "clearCoat", "coat_weight")
-	defaultEnable(rprMaterial, rsMaterial, "emissive", "emission_weight")
-	defaultEnable(rprMaterial, rsMaterial, "sssEnable", "ms_amount")
+		# Enable properties, which are default in RedShift.
+		defaultEnable(rprMaterial, rsMaterial, "diffuse", "diffuse_weight")
+		defaultEnable(rprMaterial, rsMaterial, "reflections", "refl_weight")
+		defaultEnable(rprMaterial, rsMaterial, "refraction", "refr_weight")
+		defaultEnable(rprMaterial, rsMaterial, "clearCoat", "coat_weight")
+		defaultEnable(rprMaterial, rsMaterial, "emissive", "emission_weight")
+		defaultEnable(rprMaterial, rsMaterial, "sssEnable", "ms_amount")
 
-	# Logging to file
-	start_log(rsMaterial, rprMaterial)
+		# Logging to file
+		start_log(rsMaterial, rprMaterial)
 
-	# Fields conversion
-	copyProperty(rprMaterial, rsMaterial, "diffuseColor", "diffuse_color")
-	copyProperty(rprMaterial, rsMaterial, "diffuseWeight", "diffuse_weight")
-	copyProperty(rprMaterial, rsMaterial, "diffuseRoughness", "diffuse_roughness")
+		# Fields conversion
+		copyProperty(rprMaterial, rsMaterial, "diffuseColor", "diffuse_color")
+		copyProperty(rprMaterial, rsMaterial, "diffuseWeight", "diffuse_weight")
+		copyProperty(rprMaterial, rsMaterial, "diffuseRoughness", "diffuse_roughness")
 
-	copyProperty(rprMaterial, rsMaterial, "reflectWeight", "refl_weight")
-	copyProperty(rprMaterial, rsMaterial, "reflectRoughness", "refl_roughness")
-	copyProperty(rprMaterial, rsMaterial, "reflectAnisotropy", "refl_aniso")
-	copyProperty(rprMaterial, rsMaterial, "reflectAnisotropyRotation", "refl_aniso_rotation")
+		copyProperty(rprMaterial, rsMaterial, "reflectWeight", "refl_weight")
+		copyProperty(rprMaterial, rsMaterial, "reflectRoughness", "refl_roughness")
+		copyProperty(rprMaterial, rsMaterial, "reflectAnisotropy", "refl_aniso")
+		copyProperty(rprMaterial, rsMaterial, "reflectAnisotropyRotation", "refl_aniso_rotation")
 
-	# Fresnel type conversion
-	refl_reflectivity = getProperty(rsMaterial, "refl_reflectivity")
-	refl_fr_mode = getProperty(rsMaterial, "refl_fresnel_mode" )
+		# Fresnel type conversion
+		refl_reflectivity = getProperty(rsMaterial, "refl_reflectivity")
+		refl_fr_mode = getProperty(rsMaterial, "refl_fresnel_mode" )
 
-	if refl_fr_mode == 3:
-		copyProperty(rprMaterial, rsMaterial, "reflectIOR", "refl_ior")
-		if not mapDoesNotExist(rsMaterial, "refl_color"):
-			connection = cmds.listConnections(rsMaterial + ".refl_color", type="file")
-			if connection:
-				setProperty(connection[0], "colorSpace", "Raw")
-		copyProperty(rprMaterial, rsMaterial, "reflectColor", "refl_color")
+		if refl_fr_mode == 3:
+			copyProperty(rprMaterial, rsMaterial, "reflectIOR", "refl_ior")
+			if not mapDoesNotExist(rsMaterial, "refl_color"):
+				connection = cmds.listConnections(rsMaterial + ".refl_color", type="file")
+				if connection:
+					setProperty(connection[0], "colorSpace", "Raw")
+			copyProperty(rprMaterial, rsMaterial, "reflectColor", "refl_color")
 
-	elif refl_fr_mode == 2:
+		elif refl_fr_mode == 2:
 
-		blend_value = cmds.shadingNode("RPRBlendValue", asUtility=True)
-		connectProperty(blend_value, "out", rprMaterial, "reflectColor")
+			blend_value = cmds.shadingNode("RPRBlendValue", asUtility=True)
+			connectProperty(blend_value, "out", rprMaterial, "reflectColor")
 
-		# blend color from diffuse and reflectivity to reflect color
+			# blend color from diffuse and reflectivity to reflect color
+			# no_rpr_analog
+
+			copyProperty(blend_value, rsMaterial, "inputA", "refl_reflectivity")
+			copyProperty(blend_value, rsMaterial, "inputB", "diffuse_color")
+			copyProperty(blend_value, rsMaterial, "weight", "refl_metalness")
+
+			metalness = getProperty(rsMaterial, "refl_metalness")
+			if metalness > 0:
+				setProperty(rprMaterial, "reflectMetalMaterial", 1)
+				copyProperty(rprMaterial, rsMaterial, "reflectMetalness", "refl_metalness")
+
 		# no_rpr_analog
+		elif refl_fr_mode == 1:
 
-		copyProperty(blend_value, rsMaterial, "inputA", "refl_reflectivity")
-		copyProperty(blend_value, rsMaterial, "inputB", "diffuse_color")
-		copyProperty(blend_value, rsMaterial, "weight", "refl_metalness")
+			edge_tint = getProperty(rsMaterial, "refl_edge_tint")
 
-		metalness = getProperty(rsMaterial, "refl_metalness")
-		if metalness > 0:
-			setProperty(rprMaterial, "reflectMetalMaterial", 1)
-			copyProperty(rprMaterial, rsMaterial, "reflectMetalness", "refl_metalness")
+			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			connectProperty(arithmetic, "out", rprMaterial, "reflectColor")
 
-	# no_rpr_analog
-	elif refl_fr_mode == 1:
+			blend_value = cmds.shadingNode("RPRBlendValue", asUtility=True)
+			connectProperty(blend_value, "out", arithmetic, "inputB")
 
-		edge_tint = getProperty(rsMaterial, "refl_edge_tint")
-
-		arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		connectProperty(arithmetic, "out", rprMaterial, "reflectColor")
-
-		blend_value = cmds.shadingNode("RPRBlendValue", asUtility=True)
-		connectProperty(blend_value, "out", arithmetic, "inputB")
-
-		fresnel = cmds.shadingNode("RPRFresnel", asUtility=True)
-		connectProperty(fresnel, "out", blend_value, "weight")
-
-		if not mapDoesNotExist(rsMaterial, "refl_color"):
-			connection = cmds.listConnections(rsMaterial + ".refl_color", type="file")
-			if connection:
-				setProperty(connection[0], "colorSpace", "Raw")
-		copyProperty(arithmetic, rsMaterial, "inputA", "refl_color")
-
-		setProperty(arithmetic, "operation", 2)
-
-		setProperty(fresnel, "ior", 1.5)
-
-		if edge_tint[0] or edge_tint[1] or edge_tint[2]:
-
-			copyProperty(blend_value, rsMaterial, "inputA", "refl_reflectivity")
-			copyProperty(blend_value, rsMaterial, "inputB", "refl_edge_tint")
-
-			setProperty(rprMaterial, "reflectMetalMaterial", 1)
-			copyProperty(rprMaterial, rsMaterial, "reflectMetalness", "refl_metalness")
-			if not getProperty(rprMaterial, "reflectMetalness"):
-				setProperty(rprMaterial, "reflectMetalness", 1)
-
-		else:
-
-			copyProperty(blend_value, rsMaterial, "inputA", "refl_reflectivity")
+			fresnel = cmds.shadingNode("RPRFresnel", asUtility=True)
+			connectProperty(fresnel, "out", blend_value, "weight")
 
 			if not mapDoesNotExist(rsMaterial, "refl_color"):
 				connection = cmds.listConnections(rsMaterial + ".refl_color", type="file")
 				if connection:
 					setProperty(connection[0], "colorSpace", "Raw")
-			copyProperty(blend_value, rsMaterial, "inputB", "refl_color")
+			copyProperty(arithmetic, rsMaterial, "inputA", "refl_color")
 
-			max_refl = max(refl_reflectivity)
-			if max_refl == 1:
-				max_refl = 0.9999
-			elif max_refl == 0:
-				max_refl = 0.0001
-
-			ior = -1 * (max_refl + 1 + 2 * math.sqrt(max_refl) / (max_refl - 1))
-			if ior > 10:
-				ior = 10
-
-			setProperty(rprMaterial, "reflectIOR", ior)
-			
-
-	else:
-		# advanced ior
-		# no_rpr_analog
-		# take one channel from advanced ior ti rpr ior
-		copyProperty(rprMaterial, rsMaterial, "reflectIOR", "refl_ior30")
-		if not mapDoesNotExist(rsMaterial, "refl_color"):
-			connection = cmds.listConnections(rsMaterial + ".refl_color", type="file")
-			if connection:
-				setProperty(connection[0], "colorSpace", "Raw")
-		copyProperty(rprMaterial, rsMaterial, "reflectColor", "refl_color")
-
-	copyProperty(rprMaterial, rsMaterial, "refractColor", "refr_color")
-	copyProperty(rprMaterial, rsMaterial, "refractWeight", "refr_weight")
-	copyProperty(rprMaterial, rsMaterial, "refractRoughness", "refr_roughness")
-	copyProperty(rprMaterial, rsMaterial, "refractIor", "refr_ior")
-	copyProperty(rprMaterial, rsMaterial, "refractLinkToReflect", "refr_use_base_IOR")
-	copyProperty(rprMaterial, rsMaterial, "refractThinSurface", "refr_thin_walled")
-
-	# maps doesn't support ( will work incorrectly )
-	ss_unitsMode = getProperty(rsMaterial, "ss_unitsMode")
-	if ss_unitsMode:
-		if mapDoesNotExist(rsMaterial, "ss_extinction_coeff"):
-			ss_ext_coeff = getProperty(rsMaterial, "ss_extinction_coeff")
-			absorb_color = (1 - ss_ext_coeff[0], 1 - ss_ext_coeff[1], 1 - ss_ext_coeff[2])
-			setProperty(rprMaterial, "refractAbsorbColor", absorb_color)
-
-		if mapDoesNotExist(rsMaterial, "ss_extinction_scale"):
-			absorption = 1 / getProperty(rsMaterial,  "ss_extinction_scale")
-			setProperty(rprMaterial, "refractAbsorptionDistance", absorption)
-
-	else:
-		copyProperty(rprMaterial, rsMaterial, "refractAbsorbColor", "refr_transmittance")
-		if mapDoesNotExist(rsMaterial, "refr_absorption_scale"):
-			absorption = 1 / getProperty(rsMaterial, "refr_absorption_scale")
-			setProperty(rprMaterial, "refractAbsorptionDistance", absorption)
-
-	copyProperty(rprMaterial, rsMaterial, "coatColor", "coat_color")
-	copyProperty(rprMaterial, rsMaterial, "coatWeight", "coat_weight")
-	copyProperty(rprMaterial, rsMaterial, "coatRoughness", "coat_roughness")
-	copyProperty(rprMaterial, rsMaterial, "coatTransmissionColor", "coat_transmittance")
-
-	coat_fr_mode = getProperty(rsMaterial, "coat_fresnel_mode")
-	if coat_fr_mode == 3:
-		copyProperty(rprMaterial, rsMaterial, "coatIor", "coat_ior")
-
-	copyProperty(rprMaterial, rsMaterial, "emissiveColor", "emission_color")
-	copyProperty(rprMaterial, rsMaterial, "emissiveWeight", "emission_weight")
-	copyProperty(rprMaterial, rsMaterial, "emissiveIntensity", "emission_weight")
-
-	copyProperty(rprMaterial, rsMaterial, "backscatteringWeight", "ms_amount")
-	copyProperty(rprMaterial, rsMaterial, "sssWeight", "ms_amount")
-
-	backscatteringWeight = getProperty(rsMaterial, "transl_weight")
-
-	# SSS
-	ms_amount = getProperty(rsMaterial, "ms_amount")
-	if ms_amount:
-		if not backscatteringWeight:
-			setProperty(rprMaterial, "backscatteringWeight", 0.5)
-			setProperty(rprMaterial, "separateBackscatterColor", 0)
-
-		# first layer
-		arithmetic1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(arithmetic1, "operation", 2)
-		# input A
-		if mapDoesNotExist(rsMaterial, "ms_color0"):
-			copyProperty(arithmetic1, rsMaterial, "inputA", "ms_color0")
-		else:
-			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic, "operation", 15)
-			copyProperty(arithmetic, rsMaterial, "inputA", "ms_color0")
-			setProperty(arithmetic, "inputB", (2, 2, 2))
-			connectProperty(arithmetic, "out", arithmetic1, "inputA")
-		# input B
-		factor1 = 2 * getProperty(rsMaterial, "ms_weight0") * getProperty(rsMaterial, "ms_radius0") * getProperty(rsMaterial, "ms_radius_scale")
-		setProperty(arithmetic1, "inputB", (factor1, factor1, factor1))
-
-		# second layer
-		# divide L2 by 2
-		arithmetic_divide1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(arithmetic_divide1, "operation", 3)
-		copyProperty(arithmetic_divide1, rsMaterial, "inputA", "ms_color1")
-		setProperty(arithmetic_divide1, "inputB", (2, 2, 2))
-
-		# pow 2
-		arithmetic2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(arithmetic2, "operation", 2)
-		# input A
-		if mapDoesNotExist(rsMaterial, "ms_color1"):
-			connectProperty(arithmetic_divide1, "out", arithmetic2, "inputA")
-		else:
-			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic, "operation", 15)
-			connectProperty(arithmetic_divide1, "out", arithmetic, "inputA")
-			setProperty(arithmetic, "inputB", (2, 2, 2))
-			connectProperty(arithmetic, "out", arithmetic2, "inputA")
-		# input B
-		factor2 = 2 * getProperty(rsMaterial, "ms_weight1") * getProperty(rsMaterial, "ms_radius1") * getProperty(rsMaterial, "ms_radius_scale")
-		setProperty(arithmetic2, "inputB", (factor2, factor2, factor2))	
-
-		# third layer
-		# divide L3 by 4
-		arithmetic_divide2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(arithmetic_divide2, "operation", 3)
-		copyProperty(arithmetic_divide2, rsMaterial, "inputA", "ms_color2")
-		setProperty(arithmetic_divide2, "inputB", (4, 4, 4))
-
-		# pow 2
-		arithmetic3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(arithmetic3, "operation", 2)
-		# input A
-		if mapDoesNotExist(rsMaterial, "ms_color2"):
-			connectProperty(arithmetic_divide2, "out", arithmetic3, "inputA")
-		else:
-			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic, "operation", 15)
-			connectProperty(arithmetic_divide2, "out", arithmetic3, "inputA")
-			setProperty(arithmetic, "inputB", (2, 2, 2))
-			connectProperty(arithmetic, "out", arithmetic3, "inputA")
-		# input B
-		factor3 = 2 * getProperty(rsMaterial, "ms_weight2") * getProperty(rsMaterial, "ms_radius2") * getProperty(rsMaterial, "ms_radius_scale")
-		setProperty(arithmetic3, "inputB", (factor3, factor3, factor3))
-
-		arithmetic_mix_1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(arithmetic_mix_1, "operation", 20)
-		connectProperty(arithmetic1, "out", arithmetic_mix_1, "inputA")
-		connectProperty(arithmetic2, "out", arithmetic_mix_1, "inputB")
-
-		arithmetic_mix_2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(arithmetic_mix_2, "operation", 20)
-		connectProperty(arithmetic_mix_1, "out", arithmetic_mix_2, "inputA")
-		connectProperty(arithmetic3, "out", arithmetic_mix_2, "inputB")
-		connectProperty(arithmetic_mix_2, "out", rprMaterial, "subsurfaceRadius")
-
-		arithmetic_mix_3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(arithmetic_mix_3, "operation", 20)
-		copyProperty(arithmetic_mix_3, rsMaterial, "inputA", "ms_color0")
-		connectProperty(arithmetic_divide1, "out", arithmetic_mix_3, "inputB")
-
-		arithmetic_mix_4 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(arithmetic_mix_4, "operation", 20)
-		connectProperty(arithmetic_mix_3, "out", arithmetic_mix_4, "inputA")
-		connectProperty(arithmetic_divide2, "out", arithmetic_mix_4, "inputB")
-		connectProperty(arithmetic_mix_4, "out", rprMaterial, "volumeScatter")
-
-	# transl
-	if backscatteringWeight:
-		setProperty(rprMaterial, "separateBackscatterColor", 1)
-
-		if mapDoesNotExist(rsMaterial, "transl_weight"):
-			if mapDoesNotExist(rsMaterial, "transl_color"):
-				transl_weight = getProperty(rsMaterial, "transl_weight")
-				transl_color = getProperty(rsMaterial, "transl_color")
-				avg_color = sum(transl_color) / 3.0
-				if transl_weight <= 0.5:
-					if avg_color < transl_weight:
-						backscatteringWeight = avg_color
-					else:
-						backscatteringWeight = transl_weight
-				elif transl_weight > 0.5:
-					if avg_color < transl_weight and avg_color * 2 <= 1:
-						backscatteringWeight = avg_color * 2
-					elif transl_weight * 2 <= 1:
-						backscatteringWeight = transl_weight * 2
-					else:
-						backscatteringWeight = 1
-
-				if mapDoesNotExist(rsMaterial, "opacity_color"):
-					setProperty(rprMaterial, "backscatteringWeight", backscatteringWeight)
-				else:
-					arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-					setProperty(arithmetic, "operation", 2)
-					setProperty(arithmetic, "inputAX", backscatteringWeight)
-					copyProperty(arithmetic, rsMaterial, "inputB", "opacity_color")
-					connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
-
-			else:
-				if mapDoesNotExist(rsMaterial, "opacity_color"):
-					setProperty(rprMaterial, "backscatteringWeight", 0.5 * getProperty(rsMaterial, "transl_weight"))
-				else:
-					arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-					setProperty(arithmetic, "operation", 2)
-					copyProperty(arithmetic, rsMaterial, "inputAX", "transl_weight")
-					copyProperty(arithmetic, rsMaterial, "inputB", "opacity_color")
-					connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
-		else:
-			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
 			setProperty(arithmetic, "operation", 2)
-			copyProperty(arithmetic, rsMaterial, "inputAX", "transl_weight")
-			if mapDoesNotExist(rsMaterial, "opacity_color"):
-				setProperty(arithmetic, "inputB", (0.5, 0.5, 0.5))
+
+			setProperty(fresnel, "ior", 1.5)
+
+			if edge_tint[0] or edge_tint[1] or edge_tint[2]:
+
+				copyProperty(blend_value, rsMaterial, "inputA", "refl_reflectivity")
+				copyProperty(blend_value, rsMaterial, "inputB", "refl_edge_tint")
+
+				setProperty(rprMaterial, "reflectMetalMaterial", 1)
+				copyProperty(rprMaterial, rsMaterial, "reflectMetalness", "refl_metalness")
+				if not getProperty(rprMaterial, "reflectMetalness"):
+					setProperty(rprMaterial, "reflectMetalness", 1)
+
 			else:
+
+				copyProperty(blend_value, rsMaterial, "inputA", "refl_reflectivity")
+
+				if not mapDoesNotExist(rsMaterial, "refl_color"):
+					connection = cmds.listConnections(rsMaterial + ".refl_color", type="file")
+					if connection:
+						setProperty(connection[0], "colorSpace", "Raw")
+				copyProperty(blend_value, rsMaterial, "inputB", "refl_color")
+
+				max_refl = max(refl_reflectivity)
+				if max_refl == 1:
+					max_refl = 0.9999
+				elif max_refl == 0:
+					max_refl = 0.0001
+
+				ior = -1 * (max_refl + 1 + 2 * math.sqrt(max_refl) / (max_refl - 1))
+				if ior > 10:
+					ior = 10
+
+				setProperty(rprMaterial, "reflectIOR", ior)
+				
+
+		else:
+			# advanced ior
+			# no_rpr_analog
+			# take one channel from advanced ior ti rpr ior
+			copyProperty(rprMaterial, rsMaterial, "reflectIOR", "refl_ior30")
+			if not mapDoesNotExist(rsMaterial, "refl_color"):
+				connection = cmds.listConnections(rsMaterial + ".refl_color", type="file")
+				if connection:
+					setProperty(connection[0], "colorSpace", "Raw")
+			copyProperty(rprMaterial, rsMaterial, "reflectColor", "refl_color")
+
+		copyProperty(rprMaterial, rsMaterial, "refractColor", "refr_color")
+		copyProperty(rprMaterial, rsMaterial, "refractWeight", "refr_weight")
+		copyProperty(rprMaterial, rsMaterial, "refractRoughness", "refr_roughness")
+		copyProperty(rprMaterial, rsMaterial, "refractIor", "refr_ior")
+		copyProperty(rprMaterial, rsMaterial, "refractLinkToReflect", "refr_use_base_IOR")
+		copyProperty(rprMaterial, rsMaterial, "refractThinSurface", "refr_thin_walled")
+
+		# maps doesn't support ( will work incorrectly )
+		ss_unitsMode = getProperty(rsMaterial, "ss_unitsMode")
+		if ss_unitsMode:
+			if mapDoesNotExist(rsMaterial, "ss_extinction_coeff"):
+				ss_ext_coeff = getProperty(rsMaterial, "ss_extinction_coeff")
+				absorb_color = (1 - ss_ext_coeff[0], 1 - ss_ext_coeff[1], 1 - ss_ext_coeff[2])
+				setProperty(rprMaterial, "refractAbsorbColor", absorb_color)
+
+			if mapDoesNotExist(rsMaterial, "ss_extinction_scale"):
+				absorption = 1 / getProperty(rsMaterial,  "ss_extinction_scale")
+				setProperty(rprMaterial, "refractAbsorptionDistance", absorption)
+
+		else:
+			copyProperty(rprMaterial, rsMaterial, "refractAbsorbColor", "refr_transmittance")
+			if mapDoesNotExist(rsMaterial, "refr_absorption_scale"):
+				absorption = 1 / getProperty(rsMaterial, "refr_absorption_scale")
+				setProperty(rprMaterial, "refractAbsorptionDistance", absorption)
+
+		copyProperty(rprMaterial, rsMaterial, "coatColor", "coat_color")
+		copyProperty(rprMaterial, rsMaterial, "coatWeight", "coat_weight")
+		copyProperty(rprMaterial, rsMaterial, "coatRoughness", "coat_roughness")
+		copyProperty(rprMaterial, rsMaterial, "coatTransmissionColor", "coat_transmittance")
+
+		coat_fr_mode = getProperty(rsMaterial, "coat_fresnel_mode")
+		if coat_fr_mode == 3:
+			copyProperty(rprMaterial, rsMaterial, "coatIor", "coat_ior")
+
+		copyProperty(rprMaterial, rsMaterial, "emissiveColor", "emission_color")
+		copyProperty(rprMaterial, rsMaterial, "emissiveWeight", "emission_weight")
+		copyProperty(rprMaterial, rsMaterial, "emissiveIntensity", "emission_weight")
+
+		copyProperty(rprMaterial, rsMaterial, "backscatteringWeight", "ms_amount")
+		copyProperty(rprMaterial, rsMaterial, "sssWeight", "ms_amount")
+
+		backscatteringWeight = getProperty(rsMaterial, "transl_weight")
+
+		# SSS
+		ms_amount = getProperty(rsMaterial, "ms_amount")
+		if ms_amount:
+			if not backscatteringWeight:
+				setProperty(rprMaterial, "backscatteringWeight", 0.5)
+				setProperty(rprMaterial, "separateBackscatterColor", 0)
+
+			# first layer
+			arithmetic1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic1, "operation", 2)
+			# input A
+			if mapDoesNotExist(rsMaterial, "ms_color0"):
+				copyProperty(arithmetic1, rsMaterial, "inputA", "ms_color0")
+			else:
+				arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arithmetic, "operation", 15)
+				copyProperty(arithmetic, rsMaterial, "inputA", "ms_color0")
+				setProperty(arithmetic, "inputB", (2, 2, 2))
+				connectProperty(arithmetic, "out", arithmetic1, "inputA")
+			# input B
+			factor1 = 2 * getProperty(rsMaterial, "ms_weight0") * getProperty(rsMaterial, "ms_radius0") * getProperty(rsMaterial, "ms_radius_scale")
+			setProperty(arithmetic1, "inputB", (factor1, factor1, factor1))
+
+			# second layer
+			# divide L2 by 2
+			arithmetic_divide1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic_divide1, "operation", 3)
+			copyProperty(arithmetic_divide1, rsMaterial, "inputA", "ms_color1")
+			setProperty(arithmetic_divide1, "inputB", (2, 2, 2))
+
+			# pow 2
+			arithmetic2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic2, "operation", 2)
+			# input A
+			if mapDoesNotExist(rsMaterial, "ms_color1"):
+				connectProperty(arithmetic_divide1, "out", arithmetic2, "inputA")
+			else:
+				arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arithmetic, "operation", 15)
+				connectProperty(arithmetic_divide1, "out", arithmetic, "inputA")
+				setProperty(arithmetic, "inputB", (2, 2, 2))
+				connectProperty(arithmetic, "out", arithmetic2, "inputA")
+			# input B
+			factor2 = 2 * getProperty(rsMaterial, "ms_weight1") * getProperty(rsMaterial, "ms_radius1") * getProperty(rsMaterial, "ms_radius_scale")
+			setProperty(arithmetic2, "inputB", (factor2, factor2, factor2))	
+
+			# third layer
+			# divide L3 by 4
+			arithmetic_divide2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic_divide2, "operation", 3)
+			copyProperty(arithmetic_divide2, rsMaterial, "inputA", "ms_color2")
+			setProperty(arithmetic_divide2, "inputB", (4, 4, 4))
+
+			# pow 2
+			arithmetic3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic3, "operation", 2)
+			# input A
+			if mapDoesNotExist(rsMaterial, "ms_color2"):
+				connectProperty(arithmetic_divide2, "out", arithmetic3, "inputA")
+			else:
+				arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arithmetic, "operation", 15)
+				connectProperty(arithmetic_divide2, "out", arithmetic3, "inputA")
+				setProperty(arithmetic, "inputB", (2, 2, 2))
+				connectProperty(arithmetic, "out", arithmetic3, "inputA")
+			# input B
+			factor3 = 2 * getProperty(rsMaterial, "ms_weight2") * getProperty(rsMaterial, "ms_radius2") * getProperty(rsMaterial, "ms_radius_scale")
+			setProperty(arithmetic3, "inputB", (factor3, factor3, factor3))
+
+			arithmetic_mix_1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic_mix_1, "operation", 20)
+			connectProperty(arithmetic1, "out", arithmetic_mix_1, "inputA")
+			connectProperty(arithmetic2, "out", arithmetic_mix_1, "inputB")
+
+			arithmetic_mix_2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic_mix_2, "operation", 20)
+			connectProperty(arithmetic_mix_1, "out", arithmetic_mix_2, "inputA")
+			connectProperty(arithmetic3, "out", arithmetic_mix_2, "inputB")
+			connectProperty(arithmetic_mix_2, "out", rprMaterial, "subsurfaceRadius")
+
+			arithmetic_mix_3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic_mix_3, "operation", 20)
+			copyProperty(arithmetic_mix_3, rsMaterial, "inputA", "ms_color0")
+			connectProperty(arithmetic_divide1, "out", arithmetic_mix_3, "inputB")
+
+			arithmetic_mix_4 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic_mix_4, "operation", 20)
+			connectProperty(arithmetic_mix_3, "out", arithmetic_mix_4, "inputA")
+			connectProperty(arithmetic_divide2, "out", arithmetic_mix_4, "inputB")
+			connectProperty(arithmetic_mix_4, "out", rprMaterial, "volumeScatter")
+
+		# transl
+		if backscatteringWeight:
+			setProperty(rprMaterial, "separateBackscatterColor", 1)
+
+			if mapDoesNotExist(rsMaterial, "transl_weight"):
+				if mapDoesNotExist(rsMaterial, "transl_color"):
+					transl_weight = getProperty(rsMaterial, "transl_weight")
+					transl_color = getProperty(rsMaterial, "transl_color")
+					avg_color = sum(transl_color) / 3.0
+					if transl_weight <= 0.5:
+						if avg_color < transl_weight:
+							backscatteringWeight = avg_color
+						else:
+							backscatteringWeight = transl_weight
+					elif transl_weight > 0.5:
+						if avg_color < transl_weight and avg_color * 2 <= 1:
+							backscatteringWeight = avg_color * 2
+						elif transl_weight * 2 <= 1:
+							backscatteringWeight = transl_weight * 2
+						else:
+							backscatteringWeight = 1
+
+					if mapDoesNotExist(rsMaterial, "opacity_color"):
+						setProperty(rprMaterial, "backscatteringWeight", backscatteringWeight)
+					else:
+						arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+						setProperty(arithmetic, "operation", 2)
+						setProperty(arithmetic, "inputAX", backscatteringWeight)
+						copyProperty(arithmetic, rsMaterial, "inputB", "opacity_color")
+						connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
+
+				else:
+					if mapDoesNotExist(rsMaterial, "opacity_color"):
+						setProperty(rprMaterial, "backscatteringWeight", 0.5 * getProperty(rsMaterial, "transl_weight"))
+					else:
+						arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+						setProperty(arithmetic, "operation", 2)
+						copyProperty(arithmetic, rsMaterial, "inputAX", "transl_weight")
+						copyProperty(arithmetic, rsMaterial, "inputB", "opacity_color")
+						connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
+			else:
+				arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arithmetic, "operation", 2)
+				copyProperty(arithmetic, rsMaterial, "inputAX", "transl_weight")
+				if mapDoesNotExist(rsMaterial, "opacity_color"):
+					setProperty(arithmetic, "inputB", (0.5, 0.5, 0.5))
+				else:
+					copyProperty(arithmetic, rsMaterial, "inputB", "opacity_color")
+				connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
+
+			if mapDoesNotExist(rsMaterial, "transl_color"):
+				transl_color = getProperty(rsMaterial, "transl_color")
+				arithmetic1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arithmetic1, "operation", 0)
+				setProperty(arithmetic1, "inputA", transl_color)
+				remap_color = []
+				for i in range(len(transl_color)):
+					remap_color.append(remap_value(transl_color[i], 1.0, 0.0, 0.0, 0.7))
+				setProperty(arithmetic1, "inputB", tuple(remap_color))
+
+				arithmetic2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arithmetic2, "operation", 2)
+				setProperty(arithmetic2, "inputA", transl_color)
+				setProperty(arithmetic2, "inputB", (2.2, 2.2, 2.2))
+
+				arithmetic3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arithmetic3, "operation", 2)
+				connectProperty(arithmetic1, "out", arithmetic3, "inputA")
+				connectProperty(arithmetic2, "out", arithmetic3, "inputB")
+
+				connectProperty(arithmetic3, "out", rprMaterial, "backscatteringColor")
+			else:
+				arithmetic1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arithmetic1, "operation", 0)
+				copyProperty(arithmetic1, rsMaterial, "inputA", "transl_color")
+				copyProperty(arithmetic1, rprMaterial, "inputBX", "backscatteringWeight")
+				copyProperty(arithmetic1, rprMaterial, "inputBY", "backscatteringWeight")
+				copyProperty(arithmetic1, rprMaterial, "inputBZ", "backscatteringWeight")
+
+				arithmetic2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arithmetic2, "operation", 2)
+				copyProperty(arithmetic2, rsMaterial, "inputA", "transl_color")
+				setProperty(arithmetic2, "inputB", (1.5, 1.5, 1.5))
+
+				arithmetic3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arithmetic3, "operation", 2)
+				connectProperty(arithmetic1, "out", arithmetic3, "inputA")
+				connectProperty(arithmetic2, "out", arithmetic3, "inputB")
+
+				connectProperty(arithmetic3, "out", rprMaterial, "backscatteringColor")
+
+		if getProperty(rsMaterial, "opacity_color") != (1, 1, 1):
+			if mapDoesNotExist(rsMaterial, "opacity_color"):
+				transparency = 1 - max(getProperty(rsMaterial, "opacity_color"))
+				setProperty(rprMaterial, "transparencyLevel", transparency)
+			else:
+				arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arithmetic, "operation", 1)
+				setProperty(arithmetic, "inputA", (1, 1, 1))
 				copyProperty(arithmetic, rsMaterial, "inputB", "opacity_color")
-			connectProperty(arithmetic, "outX", rprMaterial, "backscatteringWeight")
+				connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
+			setProperty(rprMaterial, "transparencyEnable", 1)
 
-		if mapDoesNotExist(rsMaterial, "transl_color"):
-			transl_color = getProperty(rsMaterial, "transl_color")
-			arithmetic1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic1, "operation", 0)
-			setProperty(arithmetic1, "inputA", transl_color)
-			remap_color = []
-			for i in range(len(transl_color)):
-				remap_color.append(remap_value(transl_color[i], 1.0, 0.0, 0.0, 0.7))
-			setProperty(arithmetic1, "inputB", tuple(remap_color))
-
-			arithmetic2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic2, "operation", 2)
-			setProperty(arithmetic2, "inputA", transl_color)
-			setProperty(arithmetic2, "inputB", (2.2, 2.2, 2.2))
-
-			arithmetic3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic3, "operation", 2)
-			connectProperty(arithmetic1, "out", arithmetic3, "inputA")
-			connectProperty(arithmetic2, "out", arithmetic3, "inputB")
-
-			connectProperty(arithmetic3, "out", rprMaterial, "backscatteringColor")
-		else:
-			arithmetic1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic1, "operation", 0)
-			copyProperty(arithmetic1, rsMaterial, "inputA", "transl_color")
-			copyProperty(arithmetic1, rprMaterial, "inputBX", "backscatteringWeight")
-			copyProperty(arithmetic1, rprMaterial, "inputBY", "backscatteringWeight")
-			copyProperty(arithmetic1, rprMaterial, "inputBZ", "backscatteringWeight")
-
-			arithmetic2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic2, "operation", 2)
-			copyProperty(arithmetic2, rsMaterial, "inputA", "transl_color")
-			setProperty(arithmetic2, "inputB", (1.5, 1.5, 1.5))
-
-			arithmetic3 = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic3, "operation", 2)
-			connectProperty(arithmetic1, "out", arithmetic3, "inputA")
-			connectProperty(arithmetic2, "out", arithmetic3, "inputB")
-
-			connectProperty(arithmetic3, "out", rprMaterial, "backscatteringColor")
-
-	if getProperty(rsMaterial, "opacity_color") != (1, 1, 1):
-		if mapDoesNotExist(rsMaterial, "opacity_color"):
-			transparency = 1 - max(getProperty(rsMaterial, "opacity_color"))
-			setProperty(rprMaterial, "transparencyLevel", transparency)
-		else:
-			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(arithmetic, "operation", 1)
-			setProperty(arithmetic, "inputA", (1, 1, 1))
-			copyProperty(arithmetic, rsMaterial, "inputB", "opacity_color")
-			connectProperty(arithmetic, "outX", rprMaterial, "transparencyLevel")
-		setProperty(rprMaterial, "transparencyEnable", 1)
-
-	# duct tape
-	if source != "bump_blender":
-		bumpConnections = cmds.listConnections(rsMaterial + ".bump_input")
-		if bumpConnections:
-			setProperty(rprMaterial, "normalMapEnable", 1)
-			copyProperty(rprMaterial, rsMaterial, "normalMap", "bump_input")
-			setProperty(rprMaterial, "useShaderNormal", 1)
-			setProperty(rprMaterial, "reflectUseShaderNormal", 1)
-			setProperty(rprMaterial, "refractUseShaderNormal", 1)
-			setProperty(rprMaterial, "coatUseShaderNormal", 1)
-	
-	# Logging to file
-	end_log(rsMaterial)
+		# duct tape
+		if source != "bump_blender":
+			bumpConnections = cmds.listConnections(rsMaterial + ".bump_input")
+			if bumpConnections:
+				setProperty(rprMaterial, "normalMapEnable", 1)
+				copyProperty(rprMaterial, rsMaterial, "normalMap", "bump_input")
+				setProperty(rprMaterial, "useShaderNormal", 1)
+				setProperty(rprMaterial, "reflectUseShaderNormal", 1)
+				setProperty(rprMaterial, "refractUseShaderNormal", 1)
+				setProperty(rprMaterial, "coatUseShaderNormal", 1)
+		
+		# Logging to file
+		end_log(rsMaterial)
 
 	if not assigned:
 		rprMaterial += "." + source
@@ -1627,30 +1789,33 @@ def convertRedshiftMaterialBlender(rsMaterial, source):
 
 	assigned = checkAssign(rsMaterial)
 	
-	# Creating new Uber material
-	rprMaterial = cmds.shadingNode("RPRBlendMaterial", asShader=True)
-	rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
+	if cmds.objExists(rsMaterial + "_rpr"):
+		rprMaterial = rsMaterial + "_rpr"
+	else:
+		# Creating new Uber material
+		rprMaterial = cmds.shadingNode("RPRBlendMaterial", asShader=True)
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
 
-	# Check shading engine in rsMaterial
-	if assigned:
-		sg = rprMaterial + "SG"
-		cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-		connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
+		# Check shading engine in rsMaterial
+		if assigned:
+			sg = rprMaterial + "SG"
+			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
+			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
 
-	# Logging to file
-	start_log(rsMaterial, rprMaterial)  
+		# Logging to file
+		start_log(rsMaterial, rprMaterial)  
 
-	# Fields conversion
-	copyProperty(rprMaterial, rsMaterial, "color0", "baseColor")
-	copyProperty(rprMaterial, rsMaterial, "color1", "layerColor1")
+		# Fields conversion
+		copyProperty(rprMaterial, rsMaterial, "color0", "baseColor")
+		copyProperty(rprMaterial, rsMaterial, "color1", "layerColor1")
 
-	# weight conversion
-	weight = cmds.listConnections(rsMaterial + ".blendColor1")
-	if weight:
-		connectProperty(weight[0], "outAlpha", rprMaterial, "weight")
+		# weight conversion
+		weight = cmds.listConnections(rsMaterial + ".blendColor1")
+		if weight:
+			connectProperty(weight[0], "outAlpha", rprMaterial, "weight")
 
-	# Logging to file
-	end_log(rsMaterial) 
+		# Logging to file
+		end_log(rsMaterial) 
 
 	if not assigned:
 		rprMaterial += "." + source
@@ -1665,27 +1830,30 @@ def convertRedshiftMatteShadowCatcher(rsMaterial, source):
 
 	assigned = checkAssign(rsMaterial)
 	
-	# Creating new Uber material
-	rprMaterial = cmds.shadingNode("RPRShadowCatcherMaterial", asShader=True)
-	rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
+	if cmds.objExists(rsMaterial + "_rpr"):
+		rprMaterial = rsMaterial + "_rpr"
+	else:
+		# Creating new Uber material
+		rprMaterial = cmds.shadingNode("RPRShadowCatcherMaterial", asShader=True)
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
 
-	# Check shading engine in rsMaterial
-	if assigned:
-		sg = rprMaterial + "SG"
-		cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-		connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
+		# Check shading engine in rsMaterial
+		if assigned:
+			sg = rprMaterial + "SG"
+			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
+			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
 
-	# Logging to file
-	start_log(rsMaterial, rprMaterial)  
+		# Logging to file
+		start_log(rsMaterial, rprMaterial)  
 
-	# Fields conversion
-	copyProperty(rprMaterial, rsMaterial, "bgIsEnv", "backgroundIsEnv")
-	copyProperty(rprMaterial, rsMaterial, "shadowTransp", "transparency")
-	copyProperty(rprMaterial, rsMaterial, "bgColor", "background")
-	copyProperty(rprMaterial, rsMaterial, "shadowColor", "shadows")
+		# Fields conversion
+		copyProperty(rprMaterial, rsMaterial, "bgIsEnv", "backgroundIsEnv")
+		copyProperty(rprMaterial, rsMaterial, "shadowTransp", "transparency")
+		copyProperty(rprMaterial, rsMaterial, "bgColor", "background")
+		copyProperty(rprMaterial, rsMaterial, "shadowColor", "shadows")
 		
-	# Logging to file
-	end_log(rsMaterial) 
+		# Logging to file
+		end_log(rsMaterial) 
 
 	if not assigned:
 		rprMaterial += "." + source
@@ -1700,44 +1868,47 @@ def convertRedshiftSubSurfaceScatter(rsMaterial, source):
 
 	assigned = checkAssign(rsMaterial)
 	
-	# Creating new Uber material
-	rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
-	rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
+	if cmds.objExists(rsMaterial + "_rpr"):
+		rprMaterial = rsMaterial + "_rpr"
+	else:
+		# Creating new Uber material
+		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
 
-	# Check shading engine in rsMaterial
-	if assigned:
-		sg = rprMaterial + "SG"
-		cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
-		connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
-		 
-	# Enable properties, which are default in RedShift
-	setProperty(rprMaterial, "sssEnable", 1)
-	setProperty(rprMaterial, "separateBackscatterColor", 1)
-	setProperty(rprMaterial, "reflections", 1)
-		
-	# Logging to file
-	start_log(rsMaterial, rprMaterial)   
+		# Check shading engine in rsMaterial
+		if assigned:
+			sg = rprMaterial + "SG"
+			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
+			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
+			 
+		# Enable properties, which are default in RedShift
+		setProperty(rprMaterial, "sssEnable", 1)
+		setProperty(rprMaterial, "separateBackscatterColor", 1)
+		setProperty(rprMaterial, "reflections", 1)
+			
+		# Logging to file
+		start_log(rsMaterial, rprMaterial)   
 
-	# Fields conversion
-	setProperty(rprMaterial, "diffuseWeight", 0.2)
-	setProperty(rprMaterial, "backscatteringWeight", 0.8)
-	copyProperty(rprMaterial, rsMaterial, "reflectIOR", "ior")
-	copyProperty(rprMaterial, rsMaterial, "diffuseColor", "sub_surface_color")
-	copyProperty(rprMaterial, rsMaterial, "volumeScatter", "sub_surface_color")
-	copyProperty(rprMaterial, rsMaterial, "backscatteringColor", "scatter_color")
+		# Fields conversion
+		setProperty(rprMaterial, "diffuseWeight", 0.2)
+		setProperty(rprMaterial, "backscatteringWeight", 0.8)
+		copyProperty(rprMaterial, rsMaterial, "reflectIOR", "ior")
+		copyProperty(rprMaterial, rsMaterial, "diffuseColor", "sub_surface_color")
+		copyProperty(rprMaterial, rsMaterial, "volumeScatter", "sub_surface_color")
+		copyProperty(rprMaterial, rsMaterial, "backscatteringColor", "scatter_color")
 
-	if mapDoesNotExist(rsMaterial, "scatter_color"):   
-		radius = getProperty(rsMaterial, "scatter_radius")
-		scatterColor= getProperty(rsMaterial, "scatter_color")
-		sssRadius = [radius + scatterColor[0] * 1.5, radius + scatterColor[1], radius + scatterColor[2]]
-		setProperty(rprMaterial, "subsurfaceRadius", tuple(sssRadius))
-		
-	if mapDoesNotExist(rsMaterial, "refl_gloss"):  
-		gloss = 1 - getProperty(rsMaterial, "refl_gloss")
-		setProperty(rprMaterial, "reflectRoughness", gloss)
-	   
-	# Logging to file
-	end_log(rsMaterial) 
+		if mapDoesNotExist(rsMaterial, "scatter_color"):   
+			radius = getProperty(rsMaterial, "scatter_radius")
+			scatterColor= getProperty(rsMaterial, "scatter_color")
+			sssRadius = [radius + scatterColor[0] * 1.5, radius + scatterColor[1], radius + scatterColor[2]]
+			setProperty(rprMaterial, "subsurfaceRadius", tuple(sssRadius))
+			
+		if mapDoesNotExist(rsMaterial, "refl_gloss"):  
+			gloss = 1 - getProperty(rsMaterial, "refl_gloss")
+			setProperty(rprMaterial, "reflectRoughness", gloss)
+		   
+		# Logging to file
+		end_log(rsMaterial) 
 
 	if not assigned:
 		rprMaterial += "." + source
@@ -2341,6 +2512,9 @@ def convertScene():
 
 	if not cmds.pluginInfo("RadeonProRender", q=True, loaded=True):
 		cmds.loadPlugin("RadeonProRender")
+
+	# redshift engine set before conversion
+	setProperty("defaultRenderGlobals","currentRenderer", "redshift")
 
 	# Convert RedshiftEnvironment
 	env = cmds.ls(type="RedshiftEnvironment")
