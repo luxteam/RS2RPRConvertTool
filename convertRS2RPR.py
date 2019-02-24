@@ -618,13 +618,6 @@ def convertRedshiftColorCorrection(rs, source):
 		copyProperty(rpr, rs, "valGain", "level")
 		copyProperty(rpr, rs, "colGamma", "gamma")
 
-		# gamma conversion. Doesn't support map conversion.
-		'''
-		if mapDoesNotExist(rs, "gamma"):
-			gamma = getProperty(rs, "gamma")
-			setProperty(rpr, "colGamma", (gamma, gamma, gamma))
-		'''
-
 		# Logging to file
 		end_log(rs)
 
@@ -1238,7 +1231,7 @@ def convertRedshiftCarPaint(rsMaterial, source):
 			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
 			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
 
-		# Enable properties, which are default in RedShift
+		# Enable properties, which are default in Redshift
 		defaultEnable(rprMaterial, rsMaterial, "diffuse", "diffuse_weight")
 		defaultEnable(rprMaterial, rsMaterial, "reflections", "spec_weight")
 		defaultEnable(rprMaterial, rsMaterial, "clearCoat", "clearcoat_weight")
@@ -1247,12 +1240,102 @@ def convertRedshiftCarPaint(rsMaterial, source):
 		start_log(rsMaterial, rprMaterial)
 
 		# Fields conversion
-		copyProperty(rprMaterial, rsMaterial, "diffuseColor", "base_color")
-		copyProperty(rprMaterial, rsMaterial, "diffuseWeight", "diffuse_weight")
-		copyProperty(rprMaterial, rsMaterial, "reflectColor", "spec_color")
-		copyProperty(rprMaterial, rsMaterial, "reflectWeight", "spec_weight")
-		copyProperty(rprMaterial, rsMaterial, "coatColor", "clearcoat_color")
-		copyProperty(rprMaterial, rsMaterial, "coatWeight", "clearcoat_weight")
+		blend_material = cmds.shadingNode("RPRBlendMaterial", asShader=True)
+		connectProperty(blend_material, "outColor", rprMaterial, "diffuseColor")
+		copyProperty(blend_material, rsMaterial, "color0", "base_color")
+		copyProperty(blend_material, rsMaterial, "color1", "edge_color")
+
+		edge_color_bias = getProperty(rsMaterial, "edge_color_bias")
+		if edge_color_bias > 1:
+			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arithmetic, "operation", 15)
+			setProperty(arithmetic, "inputB", (2, 2, 2))
+			connectProperty(arithmetic, "outX", blend_material, "weight")
+
+			fresnel = cmds.shadingNode("RPRFresnel", asUtility=True)
+			if edge_color_bias > 5:
+				edge_color_bias = 5
+			ior = remap_value(edge_color_bias, 5.0, 1.0, 1.1, 5)
+			setProperty(fresnel, "ior", ior)
+			connectProperty(fresnel, "out", arithmetic, "inputA")
+
+		else:
+			sub_arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(sub_arithmetic, "operation", 1)
+			setProperty(sub_arithmetic, "inputA", (1, 1, 1))
+			copyProperty(sub_arithmetic, rsMaterial, "inputB", "edge_color_bias")
+
+			mult_arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(mult_arithmetic, "operation", 2)
+			setProperty(mult_arithmetic, "inputB", (7, 7, 7))
+			connectProperty(sub_arithmetic, "out", mult_arithmetic, "inputA")
+
+			dot_arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(dot_arithmetic, "operation", 11)
+			connectProperty(mult_arithmetic, "out", dot_arithmetic, "inputB")
+
+			fresnel = cmds.shadingNode("RPRFresnel", asUtility=True)
+			setProperty(fresnel, "ior", 1.5)
+			connectProperty(fresnel, "out", dot_arithmetic, "inputA")
+
+			connectProperty(dot_arithmetic, "outX", blend_material, "weight")
+
+		setProperty(rprMaterial, "diffuseRoughness", 0.5)
+		copyProperty(rprMaterial, rsMaterial, "reflectColor", "flake_color")
+		
+		if mapDoesNotExist(rsMaterial, "spec_gloss"):  
+			gloss = 1 - getProperty(rsMaterial, "spec_gloss")
+			setProperty(rprMaterial, "reflectRoughness", gloss)
+		else:
+			if cmds.objectType(cmds.listConnections(rsMaterial + ".spec_gloss")[0]) == "reverse":
+				copyProperty(rprMaterial, rsMaterial, "reflectRoughness", "spec_gloss")
+			else:
+				arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arithmetic, "operation", 1)
+				setProperty(arithmetic, "inputA", (1, 1, 1))
+				copyProperty(arithmetic, rsMaterial, "inputBX", "spec_gloss")
+				connectProperty(arithmetic, "outX", rprMaterial, "reflectRoughness")
+
+		spec_facingweight = getProperty(rsMaterial, "spec_facingweight")
+		refl_ior = spec_facingweight + 1 + 2 * math.sqrt(spec_facingweight) / (spec_facingweight - 1)
+		setProperty(rprMaterial, "reflectIOR", refl_ior)
+
+		if mapDoesNotExist(rsMaterial, "clearcoat_gloss"):  
+			gloss = 1 - getProperty(rsMaterial, "clearcoat_gloss")
+			setProperty(rprMaterial, "coatRoughness", gloss)
+		else:
+			if cmds.objectType(cmds.listConnections(rsMaterial + ".clearcoat_gloss")[0]) == "reverse":
+				copyProperty(rprMaterial, rsMaterial, "coatRoughness", "clearcoat_gloss")
+			else:
+				arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arithmetic, "operation", 1)
+				setProperty(arithmetic, "inputA", (1, 1, 1))
+				copyProperty(arithmetic, rsMaterial, "inputBX", "clearcoat_gloss")
+				connectProperty(arithmetic, "outX", rprMaterial, "coatRoughness")
+
+		clearcoat_facingweight = getProperty(rsMaterial, "clearcoat_facingweight")
+		coat_ior = clearcoat_facingweight + 1 + 2 * math.sqrt(clearcoat_facingweight) / (clearcoat_facingweight - 1)
+		setProperty(rprMaterial, "coatIor", coat_ior)
+
+		bumpConnections = cmds.listConnections(rsMaterial + ".bump_input")
+		if bumpConnections:
+			setProperty(rprMaterial, "normalMapEnable", 1)
+			copyProperty(rprMaterial, rsMaterial, "normalMap", "bump_input")
+
+			if getProperty(rsMaterial, "no_baselayer_bump"):
+				setProperty(rprMaterial, "useShaderNormal", 0)
+			else:
+				setProperty(rprMaterial, "useShaderNormal", 1)
+
+			if getProperty(rsMaterial, "no_clearcoat_bump"):
+				setProperty(rprMaterial, "coatUseShaderNormal", 0)
+			else:
+				setProperty(rprMaterial, "coatUseShaderNormal", 1)
+
+			setProperty(rprMaterial, "reflectUseShaderNormal", 1)
+			setProperty(rprMaterial, "refractUseShaderNormal", 1)
+
+		
 
 		# Logging in file
 		end_log(rsMaterial)
@@ -1902,10 +1985,19 @@ def convertRedshiftSubSurfaceScatter(rsMaterial, source):
 			scatterColor= getProperty(rsMaterial, "scatter_color")
 			sssRadius = [radius + scatterColor[0] * 1.5, radius + scatterColor[1], radius + scatterColor[2]]
 			setProperty(rprMaterial, "subsurfaceRadius", tuple(sssRadius))
-			
+
 		if mapDoesNotExist(rsMaterial, "refl_gloss"):  
 			gloss = 1 - getProperty(rsMaterial, "refl_gloss")
 			setProperty(rprMaterial, "reflectRoughness", gloss)
+		else:
+			if cmds.objectType(cmds.listConnections(rsMaterial + ".refl_gloss")[0]) == "reverse":
+				copyProperty(rprMaterial, rsMaterial, "reflectRoughness", "refl_gloss")
+			else:
+				arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arithmetic, "operation", 1)
+				setProperty(arithmetic, "inputA", (1, 1, 1))
+				copyProperty(arithmetic, rsMaterial, "inputBX", "refl_gloss")
+				connectProperty(arithmetic, "outX", rprMaterial, "reflectRoughness")
 		   
 		# Logging to file
 		end_log(rsMaterial) 
