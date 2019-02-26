@@ -118,75 +118,75 @@ def end_log(rs):
 
 # additional fucntions
 
-def copyProperty(rpr_name, rs_name, rpr_attr, rs_attr):
+def copyProperty(rpr_name, conv_name, rpr_attr, conv_attr):
 
 	# full name of attribute
-	rs_field = rs_name + "." + rs_attr
+	conv_field = conv_name + "." + conv_attr
 	rpr_field = rpr_name + "." + rpr_attr
-	rs_type = type(getProperty(rs_name, rs_attr))
+	rs_type = type(getProperty(conv_name, conv_attr))
 	rpr_type = type(getProperty(rpr_name, rpr_attr))
 
 	try:
-		listConnections = cmds.listConnections(rs_field)
+		listConnections = cmds.listConnections(conv_field)
 		# connection convert
 		if listConnections:
-			obj, channel = cmds.connectionInfo(rs_field, sourceFromDestination=True).split('.')
-			source_name, source_attr = convertRSMaterial(obj, channel).split('.')
+			obj, channel = cmds.connectionInfo(conv_field, sourceFromDestination=True).split('.')
+			source_name, source_attr = convertMaterial(obj, channel).split('.')
 			connectProperty(source_name, source_attr, rpr_name, rpr_attr)
 		# complex color conversion for each channel (RGB/XYZ/HSV)
-		if not listConnections and rs_type == tuple and 1.0 in getProperty(rs_name, rs_attr):
+		if not listConnections and rs_type == tuple:
 			# RGB (redshift)
-			if cmds.objExists(rs_field + "R") and cmds.objExists(rpr_field + "R"):
-				copyProperty(rpr_name, rs_name, rpr_attr + "R", rs_attr + "R")
-				copyProperty(rpr_name, rs_name, rpr_attr + "G", rs_attr + "G")
-				copyProperty(rpr_name, rs_name, rpr_attr + "B", rs_attr + "B")
-			if cmds.objExists(rs_field + "R") and cmds.objExists(rpr_field + "X"):
-				copyProperty(rpr_name, rs_name, rpr_attr + "X", rs_attr + "R")
-				copyProperty(rpr_name, rs_name, rpr_attr + "Y", rs_attr + "G")
-				copyProperty(rpr_name, rs_name, rpr_attr + "Z", rs_attr + "B")
-			if cmds.objExists(rs_field + "R") and cmds.objExists(rpr_field + "H"):
-				copyProperty(rpr_name, rs_name, rpr_attr + "H", rs_attr + "R")
-				copyProperty(rpr_name, rs_name, rpr_attr + "S", rs_attr + "G")
-				copyProperty(rpr_name, rs_name, rpr_attr + "V", rs_attr + "B")
+			if cmds.objExists(conv_field + "R") and cmds.objExists(rpr_field + "R"):
+				copyProperty(rpr_name, conv_name, rpr_attr + "R", conv_attr + "R")
+				copyProperty(rpr_name, conv_name, rpr_attr + "G", conv_attr + "G")
+				copyProperty(rpr_name, conv_name, rpr_attr + "B", conv_attr + "B")
+			if cmds.objExists(conv_field + "R") and cmds.objExists(rpr_field + "X"):
+				copyProperty(rpr_name, conv_name, rpr_attr + "X", conv_attr + "R")
+				copyProperty(rpr_name, conv_name, rpr_attr + "Y", conv_attr + "G")
+				copyProperty(rpr_name, conv_name, rpr_attr + "Z", conv_attr + "B")
+			if cmds.objExists(conv_field + "R") and cmds.objExists(rpr_field + "H"):
+				copyProperty(rpr_name, conv_name, rpr_attr + "H", conv_attr + "R")
+				copyProperty(rpr_name, conv_name, rpr_attr + "S", conv_attr + "G")
+				copyProperty(rpr_name, conv_name, rpr_attr + "V", conv_attr + "B")
 			# XYZ (redshift)
-			if cmds.objExists(rs_field + "X") and cmds.objExists(rpr_field + "R"):
-				copyProperty(rpr_name, rs_name, rpr_attr + "R", rs_attr + "X")
-				copyProperty(rpr_name, rs_name, rpr_attr + "G", rs_attr + "Y")
-				copyProperty(rpr_name, rs_name, rpr_attr + "B", rs_attr + "Z")
-			if cmds.objExists(rs_field + "X") and cmds.objExists(rpr_field + "X"):
-				copyProperty(rpr_name, rs_name, rpr_attr + "X", rs_attr + "X")
-				copyProperty(rpr_name, rs_name, rpr_attr + "Y", rs_attr + "Y")
-				copyProperty(rpr_name, rs_name, rpr_attr + "Z", rs_attr + "Z")
-			if cmds.objExists(rs_field + "X") and cmds.objExists(rpr_field + "H"):
-				copyProperty(rpr_name, rs_name, rpr_attr + "H", rs_attr + "X")
-				copyProperty(rpr_name, rs_name, rpr_attr + "S", rs_attr + "Y")
-				copyProperty(rpr_name, rs_name, rpr_attr + "V", rs_attr + "Z")
+			if cmds.objExists(conv_field + "X") and cmds.objExists(rpr_field + "R"):
+				copyProperty(rpr_name, conv_name, rpr_attr + "R", conv_attr + "X")
+				copyProperty(rpr_name, conv_name, rpr_attr + "G", conv_attr + "Y")
+				copyProperty(rpr_name, conv_name, rpr_attr + "B", conv_attr + "Z")
+			if cmds.objExists(conv_field + "X") and cmds.objExists(rpr_field + "X"):
+				copyProperty(rpr_name, conv_name, rpr_attr + "X", conv_attr + "X")
+				copyProperty(rpr_name, conv_name, rpr_attr + "Y", conv_attr + "Y")
+				copyProperty(rpr_name, conv_name, rpr_attr + "Z", conv_attr + "Z")
+			if cmds.objExists(conv_field + "X") and cmds.objExists(rpr_field + "H"):
+				copyProperty(rpr_name, conv_name, rpr_attr + "H", conv_attr + "X")
+				copyProperty(rpr_name, conv_name, rpr_attr + "S", conv_attr + "Y")
+				copyProperty(rpr_name, conv_name, rpr_attr + "V", conv_attr + "Z")
 			# HSV (redshift)
-			if cmds.objExists(rs_field + "H") and cmds.objExists(rpr_field + "R"):
-				copyProperty(rpr_name, rs_name, rpr_attr + "R", rs_attr + "H")
-				copyProperty(rpr_name, rs_name, rpr_attr + "G", rs_attr + "S")
-				copyProperty(rpr_name, rs_name, rpr_attr + "B", rs_attr + "V")
-			if cmds.objExists(rs_field + "H") and cmds.objExists(rpr_field + "X"):
-				copyProperty(rpr_name, rs_name, rpr_attr + "X", rs_attr + "H")
-				copyProperty(rpr_name, rs_name, rpr_attr + "Y", rs_attr + "S")
-				copyProperty(rpr_name, rs_name, rpr_attr + "Z", rs_attr + "V")
-			if cmds.objExists(rs_field + "H") and cmds.objExists(rpr_field + "H"):
-				copyProperty(rpr_name, rs_name, rpr_attr + "H", rs_attr + "H")
-				copyProperty(rpr_name, rs_name, rpr_attr + "S", rs_attr + "S")
-				copyProperty(rpr_name, rs_name, rpr_attr + "V", rs_attr + "V")
+			if cmds.objExists(conv_field + "H") and cmds.objExists(rpr_field + "R"):
+				copyProperty(rpr_name, conv_name, rpr_attr + "R", conv_attr + "H")
+				copyProperty(rpr_name, conv_name, rpr_attr + "G", conv_attr + "S")
+				copyProperty(rpr_name, conv_name, rpr_attr + "B", conv_attr + "V")
+			if cmds.objExists(conv_field + "H") and cmds.objExists(rpr_field + "X"):
+				copyProperty(rpr_name, conv_name, rpr_attr + "X", conv_attr + "H")
+				copyProperty(rpr_name, conv_name, rpr_attr + "Y", conv_attr + "S")
+				copyProperty(rpr_name, conv_name, rpr_attr + "Z", conv_attr + "V")
+			if cmds.objExists(conv_field + "H") and cmds.objExists(rpr_field + "H"):
+				copyProperty(rpr_name, conv_name, rpr_attr + "H", conv_attr + "H")
+				copyProperty(rpr_name, conv_name, rpr_attr + "S", conv_attr + "S")
+				copyProperty(rpr_name, conv_name, rpr_attr + "V", conv_attr + "V")
 
 		# field conversion
 		else:
 			if rs_type == rpr_type:
-				setProperty(rpr_name, rpr_attr, getProperty(rs_name, rs_attr))
+				setProperty(rpr_name, rpr_attr, getProperty(conv_name, conv_attr))
 			elif rs_type == tuple and rpr_type == float:
-				if cmds.objExists(rs_field + "R"):
-					rs_attr += "R"
-				elif cmds.objExists(rs_field + "X"):
-					rs_attr += "X"
-				elif cmds.objExists(rs_field + "H"):
-					rs_attr += "H"
-				setProperty(rpr_name, rpr_attr, getProperty(rs_name, rs_attr))
+				if cmds.objExists(conv_field + "R"):
+					conv_attr += "R"
+				elif cmds.objExists(conv_field + "X"):
+					conv_attr += "X"
+				elif cmds.objExists(conv_field + "H"):
+					conv_attr += "H"
+				setProperty(rpr_name, rpr_attr, getProperty(conv_name, conv_attr))
 			elif rs_type == float and rpr_type == tuple:
 				if cmds.objExists(rpr_field + "R"):
 					rpr_attr1 = rpr_attr + "R"
@@ -196,18 +196,18 @@ def copyProperty(rpr_name, rs_name, rpr_attr, rs_attr):
 					rpr_attr1 = rpr_attr + "X"
 					rpr_attr2 = rpr_attr + "Y"
 					rpr_attr3 = rpr_attr + "Z"
-				elif cmds.objExists(rs_field + "H"):
+				elif cmds.objExists(conv_field + "H"):
 					rpr_attr1 = rpr_attr + "H"
 					rpr_attr2 = rpr_attr + "S"
 					rpr_attr3 = rpr_attr + "V"
-				setProperty(rpr_name, rpr_attr1, getProperty(rs_name, rs_attr))
-				setProperty(rpr_name, rpr_attr2, getProperty(rs_name, rs_attr))
-				setProperty(rpr_name, rpr_attr3, getProperty(rs_name, rs_attr))
+				setProperty(rpr_name, rpr_attr1, getProperty(conv_name, conv_attr))
+				setProperty(rpr_name, rpr_attr2, getProperty(conv_name, conv_attr))
+				setProperty(rpr_name, rpr_attr3, getProperty(conv_name, conv_attr))
 
-			write_converted_property_log(rpr_name, rs_name, rpr_attr, rs_attr)
+			write_converted_property_log(rpr_name, conv_name, rpr_attr, conv_attr)
 	except Exception as ex:
 		traceback.print_exc()
-		print(u"Error while copying from {} to {}".format(rs_field, rpr_field).encode('utf-8'))
+		print(u"Error while copying from {} to {}".format(conv_field, rpr_field).encode('utf-8'))
 
 
 def setProperty(rpr_name, rpr_attr, value):
@@ -716,7 +716,7 @@ def convertRedshiftBumpBlender(rs, source):
 	rs_map = cmds.listConnections(rs + ".baseInput")
 	if rs_map:
 		if cmds.objectType(rs_map[0]) in ("RedshiftBumpMap", "RedshiftNormalMap"):
-			rprMaterial = convertRSMaterial(rsMaterial, "bump_blender")
+			rprMaterial = convertMaterial(rsMaterial, "bump_blender")
 			connectProperty(rprMaterial, "outColor", blend_material, "color0")
 			copyProperty(rprMaterial, rs, "normalMap", "baseInput")
 			setProperty(rprMaterial, "normalMapEnable", 1)
@@ -728,7 +728,7 @@ def convertRedshiftBumpBlender(rs, source):
 	rs_map = cmds.listConnections(rs + ".bumpInput0")
 	if rs_map:
 		if cmds.objectType(rs_map[0]) in ("RedshiftBumpMap", "RedshiftNormalMap"):
-			rprMaterial = convertRSMaterial(rsMaterial, "bump_blender")
+			rprMaterial = convertMaterial(rsMaterial, "bump_blender")
 			connectProperty(rprMaterial, "outColor", blend_material, "color1")
 			copyProperty(blend_material, rs, "weight", "bumpWeight0")
 			copyProperty(rprMaterial, rs, "normalMap", "bumpInput0")
@@ -743,7 +743,7 @@ def convertRedshiftBumpBlender(rs, source):
 		if cmds.objectType(rs_map[0]) in ("RedshiftBumpMap", "RedshiftNormalMap"):
 			new_blend_material = cmds.shadingNode("RPRBlendMaterial", asShader=True)
 			connectProperty(blend_material, "outColor", new_blend_material, "color0")
-			rprMaterial = convertRSMaterial(rsMaterial, "bump_blender")
+			rprMaterial = convertMaterial(rsMaterial, "bump_blender")
 			connectProperty(rprMaterial, "outColor", new_blend_material, "color1")
 			copyProperty(new_blend_material, rs, "weight", "bumpWeight1")
 			copyProperty(rprMaterial, rs, "normalMap", "bumpInput1")
@@ -759,7 +759,7 @@ def convertRedshiftBumpBlender(rs, source):
 		if cmds.objectType(rs_map[0]) in ("RedshiftBumpMap", "RedshiftNormalMap"):
 			new_blend_material = cmds.shadingNode("RPRBlendMaterial", asShader=True)
 			connectProperty(blend_material, "outColor", new_blend_material, "color0")
-			rprMaterial = convertRSMaterial(rsMaterial, "bump_blender")
+			rprMaterial = convertMaterial(rsMaterial, "bump_blender")
 			connectProperty(rprMaterial, "outColor", new_blend_material, "color1")
 			copyProperty(new_blend_material, rs, "weight", "bumpWeight2")
 			copyProperty(rprMaterial, rs, "normalMap", "bumpInput2")
@@ -788,7 +788,7 @@ def convertStandartNode(rsMaterial, source):
 			if connection:
 				if cmds.objectType(connection[0]) not in not_converted_list and attr not in (source, "message"):
 					obj, channel = cmds.connectionInfo(rsMaterial + "." + attr, sourceFromDestination=True).split('.')
-					source_name, source_attr = convertRSMaterial(obj, channel).split('.')
+					source_name, source_attr = convertMaterial(obj, channel).split('.')
 					connectProperty(source_name, source_attr, rsMaterial, attr)
 	except Exception as ex:
 		pass
@@ -818,7 +818,7 @@ def convertUnsupportedNode(rsMaterial, source):
 					if cmds.objectType(connection[0]) not in ("materialInfo", "defaultShaderList", "shadingEngine") and attr not in (source, "message"):
 						if unsupported_connections < 2:
 							obj, channel = cmds.connectionInfo(rsMaterial + "." + attr, sourceFromDestination=True).split('.')
-							source_name, source_attr = convertRSMaterial(obj, channel).split('.')
+							source_name, source_attr = convertMaterial(obj, channel).split('.')
 							valueType = type(getProperty(rsMaterial, attr))
 							if valueType == tuple:
 								if unsupported_connections < 1:
@@ -1240,17 +1240,17 @@ def convertRedshiftCarPaint(rsMaterial, source):
 		start_log(rsMaterial, rprMaterial)
 
 		# Fields conversion
-		blend_material = cmds.shadingNode("RPRBlendMaterial", asShader=True)
-		connectProperty(blend_material, "outColor", rprMaterial, "diffuseColor")
-		copyProperty(blend_material, rsMaterial, "color0", "base_color")
-		copyProperty(blend_material, rsMaterial, "color1", "edge_color")
+		blend_value = cmds.shadingNode("RPRBlendValue", asUtility=True)
+		connectProperty(blend_value, "out", rprMaterial, "diffuseColor")
+		copyProperty(blend_value, rsMaterial, "inputA", "base_color")
+		copyProperty(blend_value, rsMaterial, "inputB", "edge_color")
 
 		edge_color_bias = getProperty(rsMaterial, "edge_color_bias")
 		if edge_color_bias > 1:
 			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
 			setProperty(arithmetic, "operation", 15)
 			setProperty(arithmetic, "inputB", (2, 2, 2))
-			connectProperty(arithmetic, "outX", blend_material, "weight")
+			connectProperty(arithmetic, "outX", blend_value, "weight")
 
 			fresnel = cmds.shadingNode("RPRFresnel", asUtility=True)
 			if edge_color_bias > 5:
@@ -1278,10 +1278,15 @@ def convertRedshiftCarPaint(rsMaterial, source):
 			setProperty(fresnel, "ior", 1.5)
 			connectProperty(fresnel, "out", dot_arithmetic, "inputA")
 
-			connectProperty(dot_arithmetic, "outX", blend_material, "weight")
+			connectProperty(dot_arithmetic, "outX", blend_value, "weight")
 
 		setProperty(rprMaterial, "diffuseRoughness", 0.5)
-		copyProperty(rprMaterial, rsMaterial, "reflectColor", "flake_color")
+
+		refl_arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(refl_arithmetic, "operation", 20)
+		copyProperty(refl_arithmetic, rsMaterial, "inputA", "base_color")
+		copyProperty(refl_arithmetic, rsMaterial, "inputB", "flake_color")
+		connectProperty(refl_arithmetic, "out", rprMaterial, "reflectColor")
 		
 		if mapDoesNotExist(rsMaterial, "spec_gloss"):  
 			gloss = 1 - getProperty(rsMaterial, "spec_gloss")
@@ -1297,7 +1302,7 @@ def convertRedshiftCarPaint(rsMaterial, source):
 				connectProperty(arithmetic, "outX", rprMaterial, "reflectRoughness")
 
 		spec_facingweight = getProperty(rsMaterial, "spec_facingweight")
-		refl_ior = spec_facingweight + 1 + 2 * math.sqrt(spec_facingweight) / (spec_facingweight - 1)
+		refl_ior = -1 * (spec_facingweight + 1 + 2 * math.sqrt(spec_facingweight)) / (spec_facingweight - 1)
 		setProperty(rprMaterial, "reflectIOR", refl_ior)
 
 		if mapDoesNotExist(rsMaterial, "clearcoat_gloss"):  
@@ -1314,7 +1319,7 @@ def convertRedshiftCarPaint(rsMaterial, source):
 				connectProperty(arithmetic, "outX", rprMaterial, "coatRoughness")
 
 		clearcoat_facingweight = getProperty(rsMaterial, "clearcoat_facingweight")
-		coat_ior = clearcoat_facingweight + 1 + 2 * math.sqrt(clearcoat_facingweight) / (clearcoat_facingweight - 1)
+		coat_ior = -1 * (clearcoat_facingweight + 1 + 2 * math.sqrt(clearcoat_facingweight)) / (clearcoat_facingweight - 1)
 		setProperty(rprMaterial, "coatIor", coat_ior)
 
 		bumpConnections = cmds.listConnections(rsMaterial + ".bump_input")
@@ -2369,15 +2374,9 @@ def convertRedshiftPortalLight(rs_light):
 	else:
 		setProperty(rprLightShape, "areaLightVisible", 1)
 	
-	copyProperty(rprTransform, rsTransform, "translateX", "translateX")
-	copyProperty(rprTransform, rsTransform, "translateY", "translateY")
-	copyProperty(rprTransform, rsTransform, "translateZ", "translateZ")
-	copyProperty(rprTransform, rsTransform, "rotateX", "rotateX")
-	copyProperty(rprTransform, rsTransform, "rotateY", "rotateY")
-	copyProperty(rprTransform, rsTransform, "rotateZ", "rotateZ")
-	copyProperty(rprTransform, rsTransform, "scaleX", "scaleX")
-	copyProperty(rprTransform, rsTransform, "scaleY", "scaleY")
-	copyProperty(rprTransform, rsTransform, "scaleZ", "scaleZ")
+	copyProperty(rprTransform, rsTransform, "translate", "translate")
+	copyProperty(rprTransform, rsTransform, "rotate", "rotate")
+	copyProperty(rprTransform, rsTransform, "scale", "scale")
 
 	# Logging to file
 	end_log(rs_light)  
@@ -2416,15 +2415,11 @@ def convertRedshiftIESLight(rs_light):
 	copyProperty(rprLightShape, rs_light, "color", "color")
 	setProperty(rprLightShape, "iesFile", getProperty(rs_light, "profile"))
 	
-	copyProperty(rprTransform, rsTransform, "translateX", "translateX")
-	copyProperty(rprTransform, rsTransform, "translateY", "translateY")
-	copyProperty(rprTransform, rsTransform, "translateZ", "translateZ")
+	copyProperty(rprTransform, rsTransform, "translate", "translate")
 	setProperty(rprTransform, "rotateX", getProperty(rsTransform, "rotateX") + 180)
 	copyProperty(rprTransform, rsTransform, "rotateY", "rotateY")
 	copyProperty(rprTransform, rsTransform, "rotateZ", "rotateZ")
-	copyProperty(rprTransform, rsTransform, "scaleX", "scaleX")
-	copyProperty(rprTransform, rsTransform, "scaleY", "scaleY")
-	copyProperty(rprTransform, rsTransform, "scaleZ", "scaleZ")
+	copyProperty(rprTransform, rsTransform, "scale", "scale")
 
 	# Logging to file
 	end_log(rs_light)  
@@ -2442,9 +2437,7 @@ def convertRedshiftVolumeScattering(rsVolumeScattering):
 
 	# create sphere
 	cmds.polySphere(n="Volume")
-	setProperty("Volume", "scaleX", 999)
-	setProperty("Volume", "scaleY", 999)
-	setProperty("Volume", "scaleZ", 999)
+	setProperty("Volume", "scale", (999, 999, 999))
 
 	# assign material
 	cmds.select("Volume")
@@ -2466,7 +2459,7 @@ def convertRedshiftVolumeScattering(rsVolumeScattering):
 
 
 # Convert material. Returns new material name.
-def convertRSMaterial(rsMaterial, source):
+def convertMaterial(rsMaterial, source):
 
 	rs_type = cmds.objectType(rsMaterial)
 
@@ -2652,7 +2645,7 @@ def convertScene():
 	materialsDict = {}
 	for each in listMaterials:
 		if checkAssign(each):
-			materialsDict[each] = convertRSMaterial(each, "")
+			materialsDict[each] = convertMaterial(each, "")
 
 	for rs, rpr in materialsDict.items():
 		try:
