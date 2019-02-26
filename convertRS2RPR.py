@@ -134,7 +134,7 @@ def copyProperty(rpr_name, conv_name, rpr_attr, conv_attr):
 			source_name, source_attr = convertMaterial(obj, channel).split('.')
 			connectProperty(source_name, source_attr, rpr_name, rpr_attr)
 		# complex color conversion for each channel (RGB/XYZ/HSV)
-		if not listConnections and rs_type == tuple:
+		elif not listConnections and rs_type == tuple:
 			# RGB (redshift)
 			if cmds.objExists(conv_field + "R") and cmds.objExists(rpr_field + "R"):
 				copyProperty(rpr_name, conv_name, rpr_attr + "R", conv_attr + "R")
