@@ -322,29 +322,53 @@ def connectProperty(source_name, source_attr, rpr_name, rpr_attr):
 		write_own_property_log(u"Connection {} to {} is failed.".format(source, rpr_field).encode('utf-8'))
 
 
-# dispalcement convertion
-def convertDisplacement(rs_sg, rpr_name):
+# displacement conversion
+def convertDisplacement(displacement, displacement_file, rs_material, rpr_material):
 
-	try:
-		displacement = cmds.listConnections(rs_sg, type="RedshiftDisplacement")
-		if displacement:
-			displacement_file = cmds.listConnections(displacement[0], type="file")
-			if displacement_file:
-				setProperty(rpr_name, "displacementEnable", 1)
-				connectProperty(displacement_file[0], "outColor", rpr_name, "displacementMap")
-				copyProperty(rpr_name, displacement[0], "displacementMax", "scale")
+	# get all shapes
+	cmds.hyperShade(objects=rs_material)
+	shapes = cmds.ls(sl=True)
 
-				meshs = cmds.listConnections(rs_sg, type="mesh")
-				if meshs:
-					shapes = cmds.listRelatives(meshes[0], type="mesh")
-					if shapes: 
-						rsEnableSubdivision = getProperty(shapes[0], "rsEnableSubdivision")
-						rsEnableDisplacement = getProperty(shapes[0], "rsEnableDisplacement")
-						if rsEnableSubdivision and rsEnableDisplacement: 
-							copyProperty(rpr_name, shapes[0], "displacementSubdiv", "rsMaxTessellationSubdivs")
-	except Exception as ex:
-		traceback.print_exc()
-		print(u"Failed to convert displacement for {} material".format(rpr_name).encode('utf-8'))
+	if len(shapes) > 1:
+		for shape in shapes:
+			rsEnableSubdivision = getProperty(shape, "rsEnableSubdivision")
+			rsEnableDisplacement = getProperty(shape, "rsEnableDisplacement")
+			featureDisplacement = getProperty(shape, "featureDisplacement")
+			if (rsEnableSubdivision and rsEnableDisplacement) or featureDisplacement: 
+				rprMaterial = convertMaterial(rs_material, "displacement_copy")
+				rpr_sg = cmds.listConnections(rprMaterial, type="shadingEngine")[0]
+
+				cmds.select(cl=True)
+				cmds.select(shape, r=True)
+				cmds.sets(forceElement=rpr_sg)
+
+				setProperty(rprMaterial, "displacementEnable", 1)
+				connectProperty(displacement_file, "outColor", rprMaterial, "displacementMap")
+
+				if featureDisplacement:
+					copyProperty(rprMaterial, shape, "displacementSubdiv", "renderSmoothLevel")
+				else:
+					rsMaxTessellationSubdivs = getProperty(shape, "rsMaxTessellationSubdivs")
+					if rsMaxTessellationSubdivs > 7:
+						rsMaxTessellationSubdivs = 7
+					setProperty(rprMaterial, "displacementSubdiv", rsMaxTessellationSubdivs)
+
+					osdVertBoundary = getProperty(shape, "osdVertBoundary")
+					displacementBoundary = remap_value(osdVertBoundary, 2, 1, 1, 0)
+					setProperty(rprMaterial, "displacementBoundary", displacementBoundary)
+
+					displacementMax = getProperty(shape, "rsDisplacementScale") * getProperty(displacement, "scale")
+					setProperty(rprMaterial, "displacementMax", displacementMax)
+
+	else:
+		setProperty(rpr_material, "displacementEnable", 1)
+		connectProperty(displacement_file, "outColor", rpr_material, "displacementMap")
+		copyProperty(rpr_material, displacement, "displacementMax", "scale")
+
+		rsEnableSubdivision = getProperty(shapes[0], "rsEnableSubdivision")
+		rsEnableDisplacement = getProperty(shapes[0], "rsEnableDisplacement")
+		if rsEnableSubdivision and rsEnableDisplacement: 
+			copyProperty(rpr_material, shapes[0], "displacementSubdiv", "rsMaxTessellationSubdivs")
 
 
 def convertbump2d(rs, source):
@@ -401,7 +425,7 @@ def convertmultiplyDivide(rs, source):
 			1: 2,
 			2: 3,
 			3: 15
-	 	}
+		}
 		setProperty(rpr, "operation", operation_map[operation])
 		copyProperty(rpr, rs, "inputA", "input1")
 		copyProperty(rpr, rs, "inputB", "input2")
@@ -1472,7 +1496,6 @@ def convertRedshiftIncandescent(rsMaterial, source):
 def convertRedshiftMaterial(rsMaterial, source):
 
 	assigned = checkAssign(rsMaterial)
-
 	# duct tape
 	if source != "bump_blender":
 		listAttr = cmds.listAttr(rsMaterial)
@@ -1483,7 +1506,7 @@ def convertRedshiftMaterial(rsMaterial, source):
 					convertRedshiftBumpBlender(connection[0], "bump_input")
 					return
 
-	if cmds.objExists(rsMaterial + "_rpr") and source != "bump_blender":
+	if cmds.objExists(rsMaterial + "_rpr") and source not in ("bump_blender", "displacement_copy"):
 		rprMaterial = rsMaterial + "_rpr"
 	else:
 		# Creating new Uber material
@@ -1496,8 +1519,14 @@ def convertRedshiftMaterial(rsMaterial, source):
 			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
 			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
 
-			rs_materialSG = cmds.listConnections(rsMaterial, type="shadingEngine")
-			convertDisplacement(rs_materialSG, rprMaterial)
+			# displacement conversion
+			if source != "displacement_copy":
+				rs_sg = cmds.listConnections(rsMaterial, type="shadingEngine")
+				displacement = cmds.listConnections(rs_sg, type="RedshiftDisplacement")
+				if displacement:
+					displacement_file = cmds.listConnections(displacement[0], type="file")
+					if displacement_file:
+						convertDisplacement(displacement[0], displacement_file[0], rsMaterial, rprMaterial)
 
 		# Enable properties, which are default in RedShift.
 		defaultEnable(rprMaterial, rsMaterial, "diffuse", "diffuse_weight")
@@ -1868,7 +1897,7 @@ def convertRedshiftMaterial(rsMaterial, source):
 		# Logging to file
 		end_log(rsMaterial)
 
-	if source and source != "bump_blender":
+	if source and source not in ("bump_blender", "displacement_copy"):
 		rprMaterial += "." + source
 	return rprMaterial
 
@@ -2655,24 +2684,27 @@ def convertScene():
 		try:
 			cmds.hyperShade(objects=rs)
 			rpr_sg = cmds.listConnections(rpr, type="shadingEngine")[0]
-			cmds.sets(e=True, forceElement=rpr_sg)
+			cmds.sets(forceElement=rpr_sg)
 		except Exception as ex:
 			traceback.print_exc()
 			print("Error while converting {} material. \n".format(rs))
 	
 	# globals conversion
-	setProperty("defaultRenderGlobals","currentRenderer", "FireRender")
-	setProperty("defaultRenderGlobals", "imageFormat", 8)
-	setProperty("RadeonProRenderGlobals", "completionCriteriaIterations", getProperty("redshiftOptions", "progressiveRenderingNumPasses") * 1.5)
-	setProperty("RadeonProRenderGlobals", "giClampIrradiance", 1)
-	setProperty("RadeonProRenderGlobals", "giClampIrradianceValue", 5)
+	try:
+		setProperty("defaultRenderGlobals","currentRenderer", "FireRender")
+		setProperty("defaultRenderGlobals", "imageFormat", 8)
+		setProperty("RadeonProRenderGlobals", "completionCriteriaIterations", getProperty("redshiftOptions", "progressiveRenderingNumPasses") * 1.5)
+		setProperty("RadeonProRenderGlobals", "giClampIrradiance", 1)
+		setProperty("RadeonProRenderGlobals", "giClampIrradianceValue", 5)
 
-	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "maxDepthGlossy", "reflectionMaxTraceDepth")
-	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "maxDepthRefraction", "refractionMaxTraceDepth")
-	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "maxRayDepth", "combinedMaxTraceDepth")
-	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "filter", "unifiedFilterType")
-	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "motionBlur", "motionBlurEnable")
-	copyProperty("RadeonProRenderGlobals", "redshiftOptions", "motionBlurScale", "motionBlurFrameDuration")
+		copyProperty("RadeonProRenderGlobals", "redshiftOptions", "maxDepthGlossy", "reflectionMaxTraceDepth")
+		copyProperty("RadeonProRenderGlobals", "redshiftOptions", "maxDepthRefraction", "refractionMaxTraceDepth")
+		copyProperty("RadeonProRenderGlobals", "redshiftOptions", "maxRayDepth", "combinedMaxTraceDepth")
+		copyProperty("RadeonProRenderGlobals", "redshiftOptions", "filter", "unifiedFilterType")
+		copyProperty("RadeonProRenderGlobals", "redshiftOptions", "motionBlur", "motionBlurEnable")
+		copyProperty("RadeonProRenderGlobals", "redshiftOptions", "motionBlurScale", "motionBlurFrameDuration")
+	except:
+		pass
 
 	matteShadowCatcher = cmds.ls(materials=True, type="RedshiftMatteShadowCatcher")
 	if matteShadowCatcher:
