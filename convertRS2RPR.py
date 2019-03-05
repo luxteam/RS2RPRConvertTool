@@ -129,7 +129,7 @@ def copyProperty(rpr_name, conv_name, rpr_attr, conv_attr):
 	try:
 		listConnections = cmds.listConnections(conv_field)
 		# connection convert
-		if listConnections:
+		if listConnections and cmds.objectType(listConnections[0]) != "transform":
 			obj, channel = cmds.connectionInfo(conv_field, sourceFromDestination=True).split('.')
 			source_name, source_attr = convertMaterial(obj, channel).split('.')
 			connectProperty(source_name, source_attr, rpr_name, rpr_attr)
@@ -872,7 +872,7 @@ def convertUnsupportedMaterial(rsMaterial, source):
 
 		end_log(rsMaterial)
 
-	if not assigned:
+	if source:
 		rprMaterial += "." + source
 	return rprMaterial
 
@@ -1138,7 +1138,7 @@ def convertRedshiftArchitectural(rsMaterial, source):
 		# Logging in file
 		end_log(rsMaterial)
 
-	if not assigned:
+	if source:
 		rprMaterial += "." + source
 	return rprMaterial
 
@@ -1205,7 +1205,7 @@ def convertRedshiftSprite(rsMaterial, source):
 		# Logging in file
 		end_log(rsMaterial)
 
-	if not assigned:
+	if source:
 		rprMaterial += "." + source
 	return rprMaterial
 
@@ -1349,7 +1349,7 @@ def convertRedshiftCarPaint(rsMaterial, source):
 		# Logging in file
 		end_log(rsMaterial)
 
-	if not assigned:
+	if source:
 		rprMaterial += "." + source
 	return rprMaterial
 
@@ -1459,7 +1459,7 @@ def convertRedshiftIncandescent(rsMaterial, source):
 		# Logging to file
 		end_log(rsMaterial)
 
-	if not assigned:
+	if source:
 		rprMaterial += "." + source
 	return rprMaterial
 
@@ -1483,7 +1483,7 @@ def convertRedshiftMaterial(rsMaterial, source):
 					convertRedshiftBumpBlender(connection[0], "bump_input")
 					return
 
-	if cmds.objExists(rsMaterial + "_rpr"):
+	if cmds.objExists(rsMaterial + "_rpr") and source != "bump_blender":
 		rprMaterial = rsMaterial + "_rpr"
 	else:
 		# Creating new Uber material
@@ -1868,7 +1868,7 @@ def convertRedshiftMaterial(rsMaterial, source):
 		# Logging to file
 		end_log(rsMaterial)
 
-	if not assigned:
+	if source and source != "bump_blender":
 		rprMaterial += "." + source
 	return rprMaterial
 
@@ -1909,7 +1909,7 @@ def convertRedshiftMaterialBlender(rsMaterial, source):
 		# Logging to file
 		end_log(rsMaterial) 
 
-	if not assigned:
+	if source:
 		rprMaterial += "." + source
 	return rprMaterial
 
@@ -1947,7 +1947,7 @@ def convertRedshiftMatteShadowCatcher(rsMaterial, source):
 		# Logging to file
 		end_log(rsMaterial) 
 
-	if not assigned:
+	if source:
 		rprMaterial += "." + source
 	return rprMaterial
 
@@ -2011,7 +2011,7 @@ def convertRedshiftSubSurfaceScatter(rsMaterial, source):
 		# Logging to file
 		end_log(rsMaterial) 
 
-	if not assigned:
+	if source:
 		rprMaterial += "." + source
 	return rprMaterial
 
