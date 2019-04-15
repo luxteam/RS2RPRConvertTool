@@ -1264,6 +1264,11 @@ def convertRedshiftCarPaint(rsMaterial, source):
 		start_log(rsMaterial, rprMaterial)
 
 		# Fields conversion
+
+		copyProperty(rprMaterial, rsMaterial, "diffuseColor", "base_color")
+		copyProperty(rprMaterial, rsMaterial, "diffuseWeight", "diffuse_weight")
+
+		'''
 		blend_value = cmds.shadingNode("RPRBlendValue", asUtility=True)
 		connectProperty(blend_value, "out", rprMaterial, "diffuseColor")
 		copyProperty(blend_value, rsMaterial, "inputA", "base_color")
@@ -1303,9 +1308,13 @@ def convertRedshiftCarPaint(rsMaterial, source):
 			connectProperty(fresnel, "out", dot_arithmetic, "inputA")
 
 			connectProperty(dot_arithmetic, "outX", blend_value, "weight")
+		'''
 
 		setProperty(rprMaterial, "diffuseRoughness", 0.5)
 
+		copyProperty(rprMaterial, rsMaterial, "reflectColor", "spec_color")
+		copyProperty(rprMaterial, rsMaterial, "reflectWeight", "spec_weight")
+		'''
 		refl_arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
 		setProperty(refl_arithmetic, "operation", 20)
 		copyProperty(refl_arithmetic, rsMaterial, "inputA", "base_color")
@@ -1330,6 +1339,7 @@ def convertRedshiftCarPaint(rsMaterial, source):
 		spec_facingweight = getProperty(rsMaterial, "spec_facingweight")
 		refl_ior = -1 * (spec_facingweight + 1 + 2 * math.sqrt(spec_facingweight)) / (spec_facingweight - 1)
 		setProperty(rprMaterial, "reflectIOR", refl_ior)
+		'''
 
 		if mapDoesNotExist(rsMaterial, "clearcoat_gloss"):  
 			gloss = 1 - getProperty(rsMaterial, "clearcoat_gloss")
@@ -1349,6 +1359,7 @@ def convertRedshiftCarPaint(rsMaterial, source):
 		setProperty(rprMaterial, "coatIor", coat_ior)
 
 		copyProperty(rprMaterial, rsMaterial, "coatWeight", "clearcoat_weight")
+		copyProperty(rprMaterial, rsMaterial, "coatColor", "clearcoat_color")
 
 		bumpConnections = cmds.listConnections(rsMaterial + ".bump_input")
 		if bumpConnections:
