@@ -1662,14 +1662,15 @@ def convertRedshiftMaterial(rsMaterial, source):
 				setProperty(rprMaterial, "refractAbsorbColor", absorb_color)
 
 			if mapDoesNotExist(rsMaterial, "ss_extinction_scale"):
-				absorption = 1 / getProperty(rsMaterial,  "ss_extinction_scale")
-				setProperty(rprMaterial, "refractAbsorptionDistance", absorption)
-
+				if getProperty(rsMaterial, "ss_extinction_scale"):
+					absorption = 1 / getProperty(rsMaterial,  "ss_extinction_scale")
+					setProperty(rprMaterial, "refractAbsorptionDistance", absorption)
 		else:
 			copyProperty(rprMaterial, rsMaterial, "refractAbsorbColor", "refr_transmittance")
 			if mapDoesNotExist(rsMaterial, "refr_absorption_scale"):
-				absorption = 1 / getProperty(rsMaterial, "refr_absorption_scale")
-				setProperty(rprMaterial, "refractAbsorptionDistance", absorption)
+				if getProperty(rsMaterial, "refr_absorption_scale"):
+					absorption = 1 / getProperty(rsMaterial, "refr_absorption_scale")
+					setProperty(rprMaterial, "refractAbsorptionDistance", absorption)
 
 		copyProperty(rprMaterial, rsMaterial, "coatColor", "coat_color")
 		copyProperty(rprMaterial, rsMaterial, "coatWeight", "coat_weight")
