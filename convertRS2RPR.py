@@ -623,7 +623,7 @@ def convertRedshiftFresnel(rs, source):
 	rpr += "." + conversion_map[source]
 	return rpr
 
-
+# deleted
 def convertRedshiftColorCorrection(rs, source):
 
 	if cmds.objExists(rs + "_rpr"):
@@ -2529,7 +2529,6 @@ def convertMaterial(rsMaterial, source):
 		"RedshiftFresnel": convertRedshiftFresnel,
 		"RedshiftColorLayer": convertRedshiftColorLayer,
 		"RedshiftBumpBlender": convertRedshiftBumpBlender,
-		"RedshiftColorCorrection": convertRedshiftColorCorrection,
 		"RedshiftNoise": convertRedshiftNoise
 		
 	}
