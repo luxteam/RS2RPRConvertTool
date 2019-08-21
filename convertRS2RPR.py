@@ -1955,6 +1955,48 @@ def convertRedshiftMaterialBlender(rsMaterial, source):
 	return rprMaterial
 
 
+#######################
+## RedshiftSkin
+#######################
+
+def convertRedshiftSkin(rsMaterial, source):
+
+	assigned = checkAssign(rsMaterial)
+	
+	if cmds.objExists(rsMaterial + "_rpr"):
+		rprMaterial = rsMaterial + "_rpr"
+	else:
+		# Creating new Uber material
+		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
+
+		# Check shading engine in rsMaterial
+		if assigned:
+			sg = rprMaterial + "SG"
+			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
+			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
+
+		# Enable properties, which are default in Redshift
+		#defaultEnable(rprMaterial, rsMaterial, "diffuse", "diffuse_weight")
+		#defaultEnable(rprMaterial, rsMaterial, "reflections", "spec_weight")
+		#defaultEnable(rprMaterial, rsMaterial, "clearCoat", "clearcoat_weight")
+
+		# Logging to file
+		start_log(rsMaterial, rprMaterial)
+
+		# Fields conversion
+
+		#copyProperty(rprMaterial, rsMaterial, "diffuseColor", "base_color")
+		#copyProperty(rprMaterial, rsMaterial, "diffuseWeight", "diffuse_weight")
+
+		# Logging in file
+		end_log(rsMaterial)
+
+	if source:
+		rprMaterial += "." + source
+	return rprMaterial
+
+
 #############################
 ## RedshiftMatteShadowCatcher 
 #############################
@@ -2015,20 +2057,33 @@ def convertRedshiftSubSurfaceScatter(rsMaterial, source):
 			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
 			 
 		# Enable properties, which are default in RedShift
-		setProperty(rprMaterial, "sssEnable", 1)
-		setProperty(rprMaterial, "separateBackscatterColor", 1)
+		if getProperty(rsMaterial, "scatter_radius") >= 0.01:
+			setProperty(rprMaterial, "sssEnable", 1)
+
+		scatter_color = getProperty(rsMaterial, "scatter_color")
+		if scatter_color[0] >= 0.1 and scatter_color[1] >= 0.1 and scatter_color[2] >= 0.1:
+			setProperty(rprMaterial, "separateBackscatterColor", 1)
+
 		setProperty(rprMaterial, "reflections", 1)
 			
 		# Logging to file
 		start_log(rsMaterial, rprMaterial)   
 
 		# Fields conversion
-		setProperty(rprMaterial, "diffuseWeight", 0.2)
-		setProperty(rprMaterial, "backscatteringWeight", 0.8)
+		setProperty(rprMaterial, "diffuseWeight", 1)
+		setProperty(rprMaterial, "diffuseRoughness", 0)
+		setProperty(rprMaterial, "backscatteringWeight", 0.5)
 		copyProperty(rprMaterial, rsMaterial, "reflectIOR", "ior")
-		copyProperty(rprMaterial, rsMaterial, "diffuseColor", "sub_surface_color")
 		copyProperty(rprMaterial, rsMaterial, "volumeScatter", "sub_surface_color")
-		copyProperty(rprMaterial, rsMaterial, "backscatteringColor", "scatter_color")
+
+		sub_surface_color = getProperty(rsMaterial, "sub_surface_color")
+		diffuseColor = (clampValue(sub_surface_color[0] * 1.59, 0, 1), clampValue(sub_surface_color[1] * 1.59, 0, 1), clampValue(sub_surface_color[2] * 1.59, 0, 1))
+		setProperty(rprMaterial, "diffuseColor", diffuseColor)
+		
+		if sum(sub_surface_color) / len(sub_surface_color) < 0.255:
+			setProperty(rprMaterial, "backscatteringColor", (sub_surface_color[0] * 3.5, sub_surface_color[1] * 3.5, sub_surface_color[2] * 3.5))
+		else:
+			setProperty(rprMaterial, "backscatteringColor", (sub_surface_color[0] * 1.59, sub_surface_color[1] * 1.59, sub_surface_color[2] * 1.59))
 
 		if mapDoesNotExist(rsMaterial, "scatter_color"):   
 			radius = getProperty(rsMaterial, "scatter_radius")
@@ -2517,7 +2572,7 @@ def convertMaterial(rsMaterial, source):
 		"RedshiftMaterialBlender": convertRedshiftMaterialBlender,
 		"RedshiftMatteShadowCatcher": convertRedshiftMatteShadowCatcher,
 		"RedshiftShaderSwitch": convertUnsupportedMaterial,
-		"RedshiftSkin": convertUnsupportedMaterial,
+		"RedshiftSkin": convertRedshiftSkin,
 		"RedshiftSprite": convertRedshiftSprite,
 		"RedshiftSubSurfaceScatter": convertRedshiftSubSurfaceScatter,
 		##utilities
@@ -2610,6 +2665,10 @@ def remap_value(value, maxInput, minInput, maxOutput, minOutput):
 	remapped_value = minOutput + ((float(value - minInput) / float(inputDiff)) * outputDiff)
 
 	return remapped_value
+
+
+def clampValue(value, minValue, maxValue):
+	return max(min(value, maxValue), minValue)
 
 
 def checkAssign(material):
@@ -2707,6 +2766,10 @@ def convertScene():
 		setProperty("RadeonProRenderGlobals", "completionCriteriaIterations", getProperty("redshiftOptions", "progressiveRenderingNumPasses") * 1.5)
 		setProperty("RadeonProRenderGlobals", "giClampIrradiance", 1)
 		setProperty("RadeonProRenderGlobals", "giClampIrradianceValue", 5)
+		rsSubSurfaceScatter = cmds.ls(type="RedshiftSubSurfaceScatter")
+		if rsSubSurfaceScatter:
+			setProperty("RadeonProRenderGlobals", "maxDepthDiffuse", 12)
+			setProperty("RadeonProRenderGlobals", "maxRayDepth ", 12)
 
 		copyProperty("RadeonProRenderGlobals", "redshiftOptions", "maxDepthGlossy", "reflectionMaxTraceDepth")
 		copyProperty("RadeonProRenderGlobals", "redshiftOptions", "maxDepthRefraction", "refractionMaxTraceDepth")
