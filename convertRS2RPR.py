@@ -2061,7 +2061,7 @@ def convertRedshiftSubSurfaceScatter(rsMaterial, source):
 			setProperty(rprMaterial, "sssEnable", 1)
 
 		scatter_color = getProperty(rsMaterial, "scatter_color")
-		if scatter_color[0] >= 0.1 and scatter_color[1] >= 0.1 and scatter_color[2] >= 0.1:
+		if sum(scatter_color) / len(scatter_color) >= 0.01:
 			setProperty(rprMaterial, "separateBackscatterColor", 1)
 
 		setProperty(rprMaterial, "reflections", 1)
@@ -2763,9 +2763,19 @@ def convertScene():
 	try:
 		setProperty("defaultRenderGlobals","currentRenderer", "FireRender")
 		setProperty("defaultRenderGlobals", "imageFormat", 8)
-		setProperty("RadeonProRenderGlobals", "completionCriteriaIterations", getProperty("redshiftOptions", "progressiveRenderingNumPasses") * 1.5)
+
+		setProperty("RadeonProRenderGlobals", "completionCriteriaSeconds", 0)
+		if getProperty("redshiftOptions", "progressiveRenderingEnabled"):
+			setProperty("RadeonProRenderGlobals", "adaptiveThreshold", 0)
+			setProperty("RadeonProRenderGlobals", "completionCriteriaIterations", getProperty("redshiftOptions", "progressiveRenderingNumPasses") * 1.5)
+		else:
+			copyProperty("RadeonProRenderGlobals", "redshiftOptions", "adaptiveThreshold", "unifiedAdaptiveErrorThreshold")
+			copyProperty("RadeonProRenderGlobals", "redshiftOptions", "completionCriteriaMinIterations", "unifiedMinSamples")
+			copyProperty("RadeonProRenderGlobals", "redshiftOptions", "completionCriteriaIterations", "unifiedMaxSamples")
+
 		setProperty("RadeonProRenderGlobals", "giClampIrradiance", 1)
 		setProperty("RadeonProRenderGlobals", "giClampIrradianceValue", 5)
+
 		rsSubSurfaceScatter = cmds.ls(type="RedshiftSubSurfaceScatter")
 		if rsSubSurfaceScatter:
 			setProperty("RadeonProRenderGlobals", "maxDepthDiffuse", 12)
