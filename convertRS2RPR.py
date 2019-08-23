@@ -926,7 +926,6 @@ def convertRedshiftArchitectural(rsMaterial, source):
 		defaultEnable(rprMaterial, rsMaterial, "diffuse", "diffuse_weight")
 		defaultEnable(rprMaterial, rsMaterial, "reflections", "reflectivity")
 		defaultEnable(rprMaterial, rsMaterial, "refraction", "transparency")
-		defaultEnable(rprMaterial, rsMaterial, "emissive", "incandescent_scale")
 		defaultEnable(rprMaterial, rsMaterial, "clearCoat", "refl_base")
 
 		# Logging to file
@@ -1067,8 +1066,12 @@ def convertRedshiftArchitectural(rsMaterial, source):
 		setProperty(rprMaterial, "refractAllowCaustics", getProperty(rsMaterial, "do_refractive_caustics"))
 			
 		# emissive
-		copyProperty(rprMaterial, rsMaterial, "emissiveColor", "additional_color")
-		copyProperty(rprMaterial, rsMaterial, "emissiveWeight", "incandescent_scale")
+		emissive_weight = getProperty(rsMaterial, "incandescent_scale")
+		emissive_color = getProperty(rsMaterial, "additional_color")
+		if emissive_weight > 0 and (emissive_color[0] > 0 or emissive_color[1] > 0 or emissive_color[2] > 0):
+			setProperty(rprMaterial, "emissive", True)
+			copyProperty(rprMaterial, rsMaterial, "emissiveColor", "additional_color")
+			copyProperty(rprMaterial, rsMaterial, "emissiveWeight", "incandescent_scale")
 
 		if getProperty(rsMaterial, "refr_translucency"):
 			setProperty(rprMaterial, "separateBackscatterColor", 1)
