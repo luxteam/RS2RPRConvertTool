@@ -2049,8 +2049,8 @@ def convertRedshiftSkin(rsMaterial, source):
 		# Mult by OverallScaleMiddle
 		mult_by_overall_scale_middle = cmds.shadingNode("RPRArithmetic", asUtility=True)
 		mult_by_overall_scale_middle = cmds.rename(mult_by_overall_scale_middle, ("mult_by_overall_scale_middle"))
-		setProperty(mult_by_overall_scale, "operation", 2)
-		copyProperty(mult_by_overall_scale, rsMaterial, "inputAX", "overall_scale")
+		setProperty(mult_by_overall_scale_middle, "operation", 2)
+		copyProperty(mult_by_overall_scale_middle, rsMaterial, "inputAX", "overall_scale")
 		connectProperty(mid_raduis_x_weight, "out", mult_by_overall_scale_middle, "inputB")
 
 		# Mult by Middle Color
@@ -2085,7 +2085,7 @@ def convertRedshiftSkin(rsMaterial, source):
 		deep_raduis_x_weight = cmds.shadingNode("RPRArithmetic", asUtility=True)
 		deep_raduis_x_weight = cmds.rename(deep_raduis_x_weight, ("deep_raduis_x_weight"))
 		setProperty(deep_raduis_x_weight, "operation", 2)
-		copyProperty(mid_raduis_x_weight, rsMaterial, "inputAX", "deep_weight")
+		copyProperty(deep_raduis_x_weight, rsMaterial, "inputAX", "deep_weight")
 		connectProperty(deep_raduis_x_radius_scale, "out", deep_raduis_x_weight, "inputB")
 
 		# Mult by OverallScaleDeep
@@ -2128,7 +2128,7 @@ def convertRedshiftSkin(rsMaterial, source):
 		else:
 			connectProperty(shallow_color_map, "out", shallow_color_mix_middle_color, "inputA")
 		if mapDoesNotExist(rsMaterial, "mid_color"):
-			copyProperty(shallow_color_mix_middle_color, rsMaterial, "inputA", "mid_color")
+			copyProperty(shallow_color_mix_middle_color, rsMaterial, "inputB", "mid_color")
 		else:
 			connectProperty(mid_color_map, "out", shallow_color_mix_middle_color, "inputB")
 
@@ -2136,11 +2136,12 @@ def convertRedshiftSkin(rsMaterial, source):
 		mix_deep_color = cmds.shadingNode("RPRArithmetic", asUtility=True)
 		mix_deep_color = cmds.rename(mix_deep_color, ("mix_deep_color"))
 		setProperty(mix_deep_color, "operation", 20)
+		connectProperty(shallow_color_mix_middle_color, "out", mix_deep_color, "inputA")
 		if mapDoesNotExist(rsMaterial, "deep_color"):
-			copyProperty(mix_deep_color, rsMaterial, "inputA", "deep_color")
+			copyProperty(mix_deep_color, rsMaterial, "inputB", "deep_color")
 		else:
-			connectProperty(deep_color_map, "out", mix_deep_color, "inputA")
-		connectProperty(shallow_color_mix_middle_color, "out", mix_deep_color, "inputB")
+			connectProperty(deep_color_map, "out", mix_deep_color, "inputB")
+		
 
 		# volume scatter
 		connectProperty(mix_deep_color, "out", rprMaterial, "volumeScatter")
@@ -2285,10 +2286,10 @@ def convertRedshiftPhysicalSky(rsSky):
 	skyNode = cmds.createNode("RPRSky", n="RPRSkyShape")
   
 	# Logging to file
-	start_log(sky, skyNode)
+	start_log(rsSky, skyNode)
 
 	# Copy properties from rsPhysicalSky
-	setProperty(skyNode, "intensity", getProperty(sky, "multiplier") * 2)
+	setProperty(skyNode, "intensity", getProperty(rsSky, "multiplier") * 2)
 	copyProperty(skyNode, rsSky, "turbidity", "haze")
 	copyProperty(skyNode, rsSky, "groundColor", "ground_color")
 	copyProperty(skyNode, rsSky, "filterColor", "night_color")
@@ -2296,7 +2297,39 @@ def convertRedshiftPhysicalSky(rsSky):
 	copyProperty(skyNode, rsSky, "sunGlow", "sun_glow_intensity")
 
 	# Logging to file
-	end_log(sky)  
+	end_log(rsSky)  
+
+
+def convertRedshiftPhysicalSun(rsSun):
+
+	sunTransfrom = cmds.listRelatives(rsSun, p=True)[0]
+	directionalLight = cmds.createNode("RPRPhysicalLight", n="RPRPhysicalLightShape")
+	directionalLightTransform = cmds.listRelatives(directionalLight, p=True)[0]
+
+	# Logging to file
+	start_log(rsSun, directionalLight)
+
+	copyProperty(directionalLightTransform, sunTransfrom, "translateX", "translateX")
+	copyProperty(directionalLightTransform, sunTransfrom, "translateY", "translateY")
+	copyProperty(directionalLightTransform, sunTransfrom, "translateZ", "translateZ")
+	copyProperty(directionalLightTransform, sunTransfrom, "rotateX", "rotateX")
+	copyProperty(directionalLightTransform, sunTransfrom, "rotateY", "rotateY")
+	copyProperty(directionalLightTransform, sunTransfrom, "rotateZ", "rotateZ")
+	copyProperty(directionalLightTransform, sunTransfrom, "scaleX", "scaleX")
+	copyProperty(directionalLightTransform, sunTransfrom, "scaleY", "scaleY")
+	copyProperty(directionalLightTransform, sunTransfrom, "scaleZ", "scaleZ")
+
+	setProperty(directionalLight, "intensityUnits", 3)
+	setProperty(directionalLight, "lightIntensity", 400)
+	setProperty(directionalLight, "colorPicker", (1, 1, 1))
+
+	allUberMaterials = cmds.ls(type="RPRUberMaterial")
+	for uber in allUberMaterials:
+		if getProperty(uber, "refraction"):
+			setProperty(uber, "refractAllowCaustics", True)
+
+	# Logging to file
+	end_log(rsSun)  
 
 
 def convertRedshiftEnvironment(env):
@@ -2361,6 +2394,14 @@ def convertRedshiftDomeLight(dome_light):
 	domeTransform = cmds.listRelatives(dome_light, p=True)[0]
 	rotateY = getProperty(domeTransform, "rotateY") - 90
 	setProperty(iblTransform, "rotateY", rotateY)
+
+	# back plane
+	if getProperty(dome_light, "backPlateEnabled"):
+		imgPlane = cmds.imagePlane()
+		copyProperty(imgPlane, dome_light, "imageName", "tex1")
+		cameras = cmds.ls(type="camera")
+		for cam in cameras:
+			connectProperty(imgPlane[1], "message", cam, "imagePlane[0]")
 
 	# Logging to file
 	end_log(dome_light)  
@@ -2775,8 +2816,8 @@ def convertLight(light):
 		"RedshiftPhysicalLight": convertRedshiftPhysicalLight,
 		"RedshiftDomeLight": convertRedshiftDomeLight,
 		"RedshiftPortalLight": convertRedshiftPortalLight,
-		#"RedshiftPhysicalSun": convertRedshiftPhysicalSun,
 		"RedshiftIESLight": convertRedshiftIESLight,
+		"RedshiftPhysicalSun": convertRedshiftPhysicalSun
 	}
 
 	conversion_func[rs_type](light)
