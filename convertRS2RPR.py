@@ -2631,45 +2631,47 @@ def convertRedshiftPortalLight(rs_light):
 	group = "|".join(splited_name[0:-2])
 
 	if cmds.objExists(rsTransform + "_rpr"):
-		pPlane[0] = rsTransform + "_rpr"
-		pPlane[1] = cmds.listRelatives(rprTransform)[0]
+		rprTransform = rsTransform + "_rpr"
+		rprLightShape = cmds.listRelatives(rprTransform)[0]
 	else: 
-		pPlane = cmds.polyPlane()
-		pPlane[0] = cmds.rename(pPlane[0], splited_name[-1] + "_rpr")
-		pPlane[1] = cmds.rename(pPlane[1], splited_name[-2] + "_rpr")
+		rprLightShape = cmds.createNode("RPRPhysicalLight", n="RPRPhysicalLightShape")
+		rprLightShape = cmds.rename(rprLightShape, splited_name[-1] + "_rpr")
+		rprTransform = cmds.listRelatives(rprLightShape, p=True)[0]
+		rprTransform = cmds.rename(rprTransform, splited_name[-2] + "_rpr")
+		rprLightShape = cmds.listRelatives(rprTransform)[0]
+
+		if group:
+			cmds.parent(rprTransform, group)
+
+		rprTransform = group + "|" + rprTransform
+		rprLightShape = rprTransform + "|" + rprLightShape
 
 	# Logging to file 
-	start_log(rs_light, pPlane)
+	start_log(rs_light, rprLightShape)
 
 	# Copy properties from rsLight
-	setProperty(pPlane[1], "subdivisionsWidth", 1)
-	setProperty(pPlane[1], "subdivisionsHeight", 1)
-	setProperty(pPlane[1], "width", 2)
-	setProperty(pPlane[1], "height", 2)
-	setProperty(pPlane[0], "rotateX", -90)
 
-	cmds.select(cl=True)
-	cmds.select(pPlane[0])
-	cmds.makeIdentity(apply=True, t=1, r=1, s=1, n=0, pn=1)
+	setProperty(rprLightShape, "lightType", 0)
 
-	copyProperty(pPlane[0], rsTransform, "translate", "translate")
-	copyProperty(pPlane[0], rsTransform, "rotate", "rotate")
-	copyProperty(pPlane[0], rsTransform, "scale", "scale")
-
-	if cmds.objExists("RPRSky"):
-		envNode = "RPRSky"
-	elif cmds.objExists("RPRIBL"):
-		envNode = "RPRIBL"
-	else:
-		# create IBL node
-		iblNode = cmds.createNode("RPRIBL", n="RPRIBLShape")
-		envNode = cmds.listRelatives(iblNode, p=True)[0]
-		setProperty(envNode, "scale", (1001.25663706144, 1001.25663706144, 1001.25663706144))
+	intensity = getProperty(rs_light, "multiplier")
+	exposure = getProperty(rs_light, "exposure")
+	setProperty(rprLightShape, "lightIntensity", intensity * 2 ** exposure)
+	setProperty(rprLightShape, "intensityUnits", 1)
 	
-	cmds.parent(pPlane, envNode)
+	copyProperty(rprLightShape, rs_light, "colorPicker", "tint_color")
+
+	visible = getProperty(rs_light, "transparency")
+	if (visible[0] or visible[1] or visible[2]): 
+		setProperty(rprLightShape, "areaLightVisible", 0)
+	else:
+		setProperty(rprLightShape, "areaLightVisible", 1)
+	
+	copyProperty(rprTransform, rsTransform, "translate", "translate")
+	copyProperty(rprTransform, rsTransform, "rotate", "rotate")
+	copyProperty(rprTransform, rsTransform, "scale", "scale")
 
 	# Logging to file
-	end_log(rs_light)  
+	end_log(rs_light) 
 
 
 def convertRedshiftIESLight(rs_light): 
