@@ -2309,18 +2309,14 @@ def convertRedshiftPhysicalSun(rsSun):
 	# Logging to file
 	start_log(rsSun, directionalLight)
 
-	copyProperty(directionalLightTransform, sunTransfrom, "translateX", "translateX")
-	copyProperty(directionalLightTransform, sunTransfrom, "translateY", "translateY")
-	copyProperty(directionalLightTransform, sunTransfrom, "translateZ", "translateZ")
-	copyProperty(directionalLightTransform, sunTransfrom, "rotateX", "rotateX")
-	copyProperty(directionalLightTransform, sunTransfrom, "rotateY", "rotateY")
-	copyProperty(directionalLightTransform, sunTransfrom, "rotateZ", "rotateZ")
-	copyProperty(directionalLightTransform, sunTransfrom, "scaleX", "scaleX")
-	copyProperty(directionalLightTransform, sunTransfrom, "scaleY", "scaleY")
-	copyProperty(directionalLightTransform, sunTransfrom, "scaleZ", "scaleZ")
+	copyProperty(directionalLightTransform, sunTransfrom, "translate", "translate")
+	copyProperty(directionalLightTransform, sunTransfrom, "rotate", "rotate")
+	copyProperty(directionalLightTransform, sunTransfrom, "scale", "scale")
 
+	skyNode = cmds.listConnections(rsSun, type="RedshiftPhysicalSky")[0]
+	setProperty(directionalLight, "lightType", 3)
 	setProperty(directionalLight, "intensityUnits", 3)
-	setProperty(directionalLight, "lightIntensity", 400)
+	setProperty(directionalLight, "lightIntensity", getProperty(skyNode, "multiplier") * 400)
 	setProperty(directionalLight, "colorPicker", (1, 1, 1))
 
 	allUberMaterials = cmds.ls(type="RPRUberMaterial")
@@ -2341,9 +2337,7 @@ def convertRedshiftEnvironment(env):
 		# create IBL node
 		iblShape = cmds.createNode("RPRIBL", n="RPRIBLShape")
 		iblTransform = cmds.listRelatives(iblShape, p=True)[0]
-		setProperty(iblTransform, "scaleX", 1001.25663706144)
-		setProperty(iblTransform, "scaleY", 1001.25663706144)
-		setProperty(iblTransform, "scaleZ", 1001.25663706144)
+		setProperty(iblTransform, "scale", (1001.25663706144, 1001.25663706144, 1001.25663706144))
 
 	# Logging to file 
 	start_log(env, iblShape)
@@ -2359,9 +2353,7 @@ def convertRedshiftEnvironment(env):
 		copyProperty(iblTransform, env, "filePath", "tex0")
 
 	envTransform = cmds.listConnections(env, type="place3dTexture")[0]
-	copyProperty(iblTransform, envTransform, "rotateX", "rotateX")
-	copyProperty(iblTransform, envTransform, "rotateY", "rotateY")
-	copyProperty(iblTransform, envTransform, "rotateZ", "rotateZ")
+	copyProperty(iblTransform, envTransform, "rotate", "rotate")
 
 	# Logging to file
 	end_log(env)  
@@ -2376,9 +2368,7 @@ def convertRedshiftDomeLight(dome_light):
 		# create IBL node
 		iblShape = cmds.createNode("RPRIBL", n="RPRIBLShape")
 		iblTransform = cmds.listRelatives(iblShape, p=True)[0]
-		setProperty(iblTransform, "scaleX", 1001.25663706144)
-		setProperty(iblTransform, "scaleY", 1001.25663706144)
-		setProperty(iblTransform, "scaleZ", 1001.25663706144)
+		setProperty(iblTransform, "scale", (1001.25663706144, 1001.25663706144, 1001.25663706144))
 
 	# Logging to file 
 	start_log(dome_light, iblShape)
@@ -2434,15 +2424,9 @@ def convertRedshiftPhysicalLight(rs_light):
 	start_log(rs_light, rprLightShape)
 
 	# Copy properties from rsLight
-	copyProperty(rprTransform, rsTransform, "translateX", "translateX")
-	copyProperty(rprTransform, rsTransform, "translateY", "translateY")
-	copyProperty(rprTransform, rsTransform, "translateZ", "translateZ")
-	copyProperty(rprTransform, rsTransform, "rotateX", "rotateX")
-	copyProperty(rprTransform, rsTransform, "rotateY", "rotateY")
-	copyProperty(rprTransform, rsTransform, "rotateZ", "rotateZ")
-	copyProperty(rprTransform, rsTransform, "scaleX", "scaleX")
-	copyProperty(rprTransform, rsTransform, "scaleY", "scaleY")
-	copyProperty(rprTransform, rsTransform, "scaleZ", "scaleZ")
+	copyProperty(rprTransform, rsTransform, "translate", "translate")
+	copyProperty(rprTransform, rsTransform, "rotate", "rotate")
+	copyProperty(rprTransform, rsTransform, "scale", "scale")
 
 	lightType = getProperty(rs_light, "lightType")
 	light_type_map = {
@@ -2647,44 +2631,42 @@ def convertRedshiftPortalLight(rs_light):
 	group = "|".join(splited_name[0:-2])
 
 	if cmds.objExists(rsTransform + "_rpr"):
-		rprTransform = rsTransform + "_rpr"
-		rprLightShape = cmds.listRelatives(rprTransform)[0]
+		pPlane[0] = rsTransform + "_rpr"
+		pPlane[1] = cmds.listRelatives(rprTransform)[0]
 	else: 
-		rprLightShape = cmds.createNode("RPRPhysicalLight", n="RPRPhysicalLightShape")
-		rprLightShape = cmds.rename(rprLightShape, splited_name[-1] + "_rpr")
-		rprTransform = cmds.listRelatives(rprLightShape, p=True)[0]
-		rprTransform = cmds.rename(rprTransform, splited_name[-2] + "_rpr")
-		rprLightShape = cmds.listRelatives(rprTransform)[0]
-
-		if group:
-			cmds.parent(rprTransform, group)
-
-		rprTransform = group + "|" + rprTransform
-		rprLightShape = rprTransform + "|" + rprLightShape
+		pPlane = cmds.polyPlane()
+		pPlane[0] = cmds.rename(pPlane[0], splited_name[-1] + "_rpr")
+		pPlane[1] = cmds.rename(pPlane[1], splited_name[-2] + "_rpr")
 
 	# Logging to file 
-	start_log(rs_light, rprLightShape)
+	start_log(rs_light, pPlane)
 
 	# Copy properties from rsLight
+	setProperty(pPlane[1], "subdivisionsWidth", 1)
+	setProperty(pPlane[1], "subdivisionsHeight", 1)
+	setProperty(pPlane[1], "width", 2)
+	setProperty(pPlane[1], "height", 2)
+	setProperty(pPlane[0], "rotateX", -90)
 
-	setProperty(rprLightShape, "lightType", 0)
+	cmds.select(cl=True)
+	cmds.select(pPlane[0])
+	cmds.makeIdentity(apply=True, t=1, r=1, s=1, n=0, pn=1)
 
-	intensity = getProperty(rs_light, "multiplier")
-	exposure = getProperty(rs_light, "exposure")
-	setProperty(rprLightShape, "lightIntensity", intensity * 2 ** exposure)
-	setProperty(rprLightShape, "intensityUnits", 1)
-	
-	copyProperty(rprLightShape, rs_light, "colorPicker", "tint_color")
+	copyProperty(pPlane[0], rsTransform, "translate", "translate")
+	copyProperty(pPlane[0], rsTransform, "rotate", "rotate")
+	copyProperty(pPlane[0], rsTransform, "scale", "scale")
 
-	visible = getProperty(rs_light, "transparency")
-	if (visible[0] or visible[1] or visible[2]): 
-		setProperty(rprLightShape, "areaLightVisible", 0)
+	if cmds.objExists("RPRSky"):
+		envNode = "RPRSky"
+	elif cmds.objExists("RPRIBL"):
+		envNode = "RPRIBL"
 	else:
-		setProperty(rprLightShape, "areaLightVisible", 1)
+		# create IBL node
+		iblNode = cmds.createNode("RPRIBL", n="RPRIBLShape")
+		envNode = cmds.listRelatives(iblNode, p=True)[0]
+		setProperty(envNode, "scale", (1001.25663706144, 1001.25663706144, 1001.25663706144))
 	
-	copyProperty(rprTransform, rsTransform, "translate", "translate")
-	copyProperty(rprTransform, rsTransform, "rotate", "rotate")
-	copyProperty(rprTransform, rsTransform, "scale", "scale")
+	cmds.parent(pPlane, envNode)
 
 	# Logging to file
 	end_log(rs_light)  
@@ -2748,6 +2730,7 @@ def convertRedshiftVolumeScattering(rsVolumeScattering):
 	setProperty("Volume", "scale", (999, 999, 999))
 
 	# assign material
+	cmds.select(cl=True)
 	cmds.select("Volume")
 	cmds.sets(e=True, forceElement=sg)
 
