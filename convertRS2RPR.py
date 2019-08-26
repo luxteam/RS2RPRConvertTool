@@ -2986,6 +2986,11 @@ def convertScene():
 		copyProperty("RadeonProRenderGlobals", "redshiftOptions", "filter", "unifiedFilterType")
 		copyProperty("RadeonProRenderGlobals", "redshiftOptions", "motionBlur", "motionBlurEnable")
 		copyProperty("RadeonProRenderGlobals", "redshiftOptions", "motionBlurScale", "motionBlurFrameDuration")
+
+		cameras = cmds.ls(type="camera")
+		for cam in cameras:
+			setProperty(cam, "mask", False)
+
 	except:
 		pass
 
