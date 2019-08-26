@@ -3003,15 +3003,15 @@ def convertScene():
 		except Exception as ex:
 			traceback.print_exc()
 
-	rsPhotographicExposure = cmds.ls(type="RedshiftPhotographicExposure")
-	if rsPhotographicExposure:
-		if getProperty(rsPhotographicExposure[0], "enable"):
+	rsPostEffects = cmds.listConnections("redshiftOptions", type="RedshiftPostEffects")
+	if rsPostEffects:
+		if getProperty(rsPostEffects[0], "tonemapEnable"):
 			setProperty("RadeonProRenderGlobals", "toneMappingType", 2)
-			setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearSensitivity", getProperty(rsPhotographicExposure[0], "filmSpeed") / 100.0)
-			copyProperty("RadeonProRenderGlobals", rsPhotographicExposure[0], "toneMappingPhotolinearFstop", "fStop")
+			setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearSensitivity", getProperty(rsPostEffects[0], "tonemapFilmSpeed") / 100.0)
+			copyProperty("RadeonProRenderGlobals", rsPostEffects[0], "toneMappingPhotolinearFstop", "tonemapFstop")
 
-			reinhardFactor = getProperty(rsPhotographicExposure[0], "reinhardFactor")
-			shutterRatio = getProperty(rsPhotographicExposure[0], "shutterRatio")
+			reinhardFactor = getProperty(rsPostEffects[0], "tonemapReinhardFactor")
+			shutterRatio = getProperty(rsPostEffects[0], "tonemapShutterRatio")
 			if shutterRatio >= 800:
 				exposure = (3.3 * (10 / (shutterRatio + 400) ** 0.5) / math.log((shutterRatio - 770) ** 0.7)) * 2 ** reinhardFactor
 				setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure", exposure)
