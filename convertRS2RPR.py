@@ -926,7 +926,6 @@ def convertRedshiftArchitectural(rsMaterial, source):
 		defaultEnable(rprMaterial, rsMaterial, "diffuse", "diffuse_weight")
 		defaultEnable(rprMaterial, rsMaterial, "reflections", "reflectivity")
 		defaultEnable(rprMaterial, rsMaterial, "refraction", "transparency")
-		defaultEnable(rprMaterial, rsMaterial, "emissive", "incandescent_scale")
 		defaultEnable(rprMaterial, rsMaterial, "clearCoat", "refl_base")
 
 		# Logging to file
@@ -1067,8 +1066,12 @@ def convertRedshiftArchitectural(rsMaterial, source):
 		setProperty(rprMaterial, "refractAllowCaustics", getProperty(rsMaterial, "do_refractive_caustics"))
 			
 		# emissive
-		copyProperty(rprMaterial, rsMaterial, "emissiveColor", "additional_color")
-		copyProperty(rprMaterial, rsMaterial, "emissiveWeight", "incandescent_scale")
+		emissive_weight = getProperty(rsMaterial, "incandescent_scale")
+		emissive_color = getProperty(rsMaterial, "additional_color")
+		if emissive_weight > 0 and (emissive_color[0] > 0 or emissive_color[1] > 0 or emissive_color[2] > 0):
+			setProperty(rprMaterial, "emissive", True)
+			copyProperty(rprMaterial, rsMaterial, "emissiveColor", "additional_color")
+			copyProperty(rprMaterial, rsMaterial, "emissiveWeight", "incandescent_scale")
 
 		if getProperty(rsMaterial, "refr_translucency"):
 			setProperty(rprMaterial, "separateBackscatterColor", 1)
@@ -1955,6 +1958,216 @@ def convertRedshiftMaterialBlender(rsMaterial, source):
 	return rprMaterial
 
 
+#######################
+## RedshiftSkin
+#######################
+
+def convertRedshiftSkin(rsMaterial, source):
+
+	assigned = checkAssign(rsMaterial)
+	
+	if cmds.objExists(rsMaterial + "_rpr"):
+		rprMaterial = rsMaterial + "_rpr"
+	else:
+		# Creating new Uber material
+		rprMaterial = cmds.shadingNode("RPRUberMaterial", asShader=True)
+		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
+
+		# Check shading engine in rsMaterial
+		if assigned:
+			sg = rprMaterial + "SG"
+			cmds.sets(renderable=True, noSurfaceShader=True, empty=True, name=sg)
+			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
+
+		# Enable properties, which are default in Redshift
+		defaultEnable(rprMaterial, rsMaterial, "reflections", "refl_weight0")
+		defaultEnable(rprMaterial, rsMaterial, "clearCoat", "refl_weight1")
+
+		# Logging to file
+		start_log(rsMaterial, rprMaterial)
+
+		# Fields conversion
+		setProperty(rprMaterial, "diffuseWeight", 1)
+		setProperty(rprMaterial, "diffuseRoughness", 0)
+		setProperty(rprMaterial, "separateBackscatterColor", True)
+		setProperty(rprMaterial, "backscatteringWeight", 0.4)
+		copyProperty(rprMaterial, rsMaterial, "reflectColor", "refl_color0")
+		copyProperty(rprMaterial, rsMaterial, "reflectWeight", "refl_weight0")
+		setProperty(rprMaterial, "reflectRoughness", (1 - getProperty(rsMaterial, "refl_gloss0")))
+		copyProperty(rprMaterial, rsMaterial, "reflectIOR", "refl_ior0")
+		copyProperty(rprMaterial, rsMaterial, "coatColor", "refl_color1")
+		copyProperty(rprMaterial, rsMaterial, "coatWeight", "refl_weight1")
+		setProperty(rprMaterial, "coatRoughness", (1 - getProperty(rsMaterial, "refl_gloss1")))
+		copyProperty(rprMaterial, rsMaterial, "coatIor", "refl_ior1")
+
+		# shallow radius * radius scale
+		shallow_raduis_x_radius_scale = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		shallow_raduis_x_radius_scale = cmds.rename(shallow_raduis_x_radius_scale, ("shallow_raduis_x_radius_scale"))
+		setProperty(shallow_raduis_x_radius_scale, "operation", 2)
+		copyProperty(shallow_raduis_x_radius_scale, rsMaterial, "inputAX", "shallow_radius")
+		copyProperty(shallow_raduis_x_radius_scale, rsMaterial, "inputBX", "radius_scale")
+
+		# shallow radius * weight
+		shallow_raduis_x_weight = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		shallow_raduis_x_weight = cmds.rename(shallow_raduis_x_weight, ("shallow_raduis_x_weight"))
+		setProperty(shallow_raduis_x_weight, "operation", 2)
+		copyProperty(shallow_raduis_x_weight, rsMaterial, "inputAX", "shallow_weight")
+		connectProperty(shallow_raduis_x_radius_scale, "out", shallow_raduis_x_weight, "inputB")
+
+		# Mult by OverallScale
+		mult_by_overall_scale = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		mult_by_overall_scale = cmds.rename(mult_by_overall_scale, ("mult_by_overall_scale"))
+		setProperty(mult_by_overall_scale, "operation", 2)
+		copyProperty(mult_by_overall_scale, rsMaterial, "inputAX", "overall_scale")
+		connectProperty(shallow_raduis_x_weight, "out", mult_by_overall_scale, "inputB")
+
+		# Mult by Shallow Color
+		mult_by_shallow_color = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		mult_by_shallow_color = cmds.rename(mult_by_shallow_color, ("mult_by_shallow_color"))
+		setProperty(mult_by_shallow_color, "operation", 2)
+		if mapDoesNotExist(rsMaterial, "shallow_color"):
+			copyProperty(mult_by_shallow_color, rsMaterial, "inputA", "shallow_color")
+		else:
+			shallow_color_map = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(shallow_color_map, "operation", 15)
+			copyProperty(shallow_color_map, rsMaterial, "inputA", "shallow_color")
+			setProperty(shallow_color_map, "inputB", (2.2, 2.2, 2.2))
+			connectProperty(shallow_color_map, "out", mult_by_shallow_color, "inputA")
+		connectProperty(mult_by_overall_scale, "out", mult_by_shallow_color, "inputB")
+
+		# middle radius * radius scale
+		mid_raduis_x_radius_scale = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		mid_raduis_x_radius_scale = cmds.rename(mid_raduis_x_radius_scale, ("mid_raduis_x_radius_scale"))
+		setProperty(mid_raduis_x_radius_scale, "operation", 2)
+		copyProperty(mid_raduis_x_radius_scale, rsMaterial, "inputAX", "mid_radius")
+		copyProperty(mid_raduis_x_radius_scale, rsMaterial, "inputBX", "radius_scale")
+
+		# middle radius * weight
+		mid_raduis_x_weight = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		mid_raduis_x_weight = cmds.rename(mid_raduis_x_weight, ("mid_raduis_x_weight"))
+		setProperty(mid_raduis_x_weight, "operation", 2)
+		copyProperty(mid_raduis_x_weight, rsMaterial, "inputAX", "mid_weight")
+		connectProperty(mid_raduis_x_radius_scale, "out", mid_raduis_x_weight, "inputB")
+
+		# Mult by OverallScaleMiddle
+		mult_by_overall_scale_middle = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		mult_by_overall_scale_middle = cmds.rename(mult_by_overall_scale_middle, ("mult_by_overall_scale_middle"))
+		setProperty(mult_by_overall_scale_middle, "operation", 2)
+		copyProperty(mult_by_overall_scale_middle, rsMaterial, "inputAX", "overall_scale")
+		connectProperty(mid_raduis_x_weight, "out", mult_by_overall_scale_middle, "inputB")
+
+		# Mult by Middle Color
+		mult_by_middle_color = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		mult_by_middle_color = cmds.rename(mult_by_middle_color, ("mult_by_middle_color"))
+		setProperty(mult_by_middle_color, "operation", 2)
+		if mapDoesNotExist(rsMaterial, "mid_color"):
+			copyProperty(mult_by_middle_color, rsMaterial, "inputA", "mid_color")
+		else:
+			mid_color_map = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(mid_color_map, "operation", 15)
+			copyProperty(mid_color_map, rsMaterial, "inputA", "mid_color")
+			setProperty(mid_color_map, "inputB", (2.2, 2.2, 2.2))
+			connectProperty(mid_color_map, "out", mult_by_middle_color, "inputA")
+		connectProperty(mult_by_overall_scale_middle, "out", mult_by_middle_color, "inputB")
+
+		# Mix ShallowBiasedColor and MiddleBiasedColor
+		shallow_biased_color_mix_middle_biased_color = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		shallow_biased_color_mix_middle_biased_color = cmds.rename(shallow_biased_color_mix_middle_biased_color, ("shallow_biased_color_mix_middle_biased_color"))
+		setProperty(shallow_biased_color_mix_middle_biased_color, "operation", 20)
+		connectProperty(mult_by_shallow_color, "out", shallow_biased_color_mix_middle_biased_color, "inputA")
+		connectProperty(mult_by_middle_color, "out", shallow_biased_color_mix_middle_biased_color, "inputB")
+
+		# deep radius * radius scale
+		deep_raduis_x_radius_scale = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		deep_raduis_x_radius_scale = cmds.rename(deep_raduis_x_radius_scale, ("deep_raduis_x_radius_scale"))
+		setProperty(deep_raduis_x_radius_scale, "operation", 2)
+		copyProperty(deep_raduis_x_radius_scale, rsMaterial, "inputAX", "deep_radius")
+		copyProperty(deep_raduis_x_radius_scale, rsMaterial, "inputBX", "radius_scale")
+
+		# deep radius * weight
+		deep_raduis_x_weight = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		deep_raduis_x_weight = cmds.rename(deep_raduis_x_weight, ("deep_raduis_x_weight"))
+		setProperty(deep_raduis_x_weight, "operation", 2)
+		copyProperty(deep_raduis_x_weight, rsMaterial, "inputAX", "deep_weight")
+		connectProperty(deep_raduis_x_radius_scale, "out", deep_raduis_x_weight, "inputB")
+
+		# Mult by OverallScaleDeep
+		mult_by_overall_scale_deep = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		mult_by_overall_scale_deep = cmds.rename(mult_by_overall_scale_deep, ("mult_by_overall_scale_deep"))
+		setProperty(mult_by_overall_scale_deep, "operation", 2)
+		copyProperty(mult_by_overall_scale_deep, rsMaterial, "inputAX", "overall_scale")
+		connectProperty(deep_raduis_x_weight, "out", mult_by_overall_scale_deep, "inputB")
+
+		# Mult by Deep Color
+		mult_by_deep_color = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		mult_by_deep_color = cmds.rename(mult_by_deep_color, ("mult_by_deep_color"))
+		setProperty(mult_by_deep_color, "operation", 20)
+		if mapDoesNotExist(rsMaterial, "deep_color"):
+			copyProperty(mult_by_deep_color, rsMaterial, "inputA", "deep_color")
+		else:
+			deep_color_map = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(deep_color_map, "operation", 15)
+			copyProperty(deep_color_map, rsMaterial, "inputA", "deep_color")
+			setProperty(deep_color_map, "inputB", (2.2, 2.2, 2.2))
+			connectProperty(deep_color_map, "out", mult_by_deep_color, "inputA")
+		connectProperty(mult_by_overall_scale_deep, "out", mult_by_deep_color, "inputB")
+
+		# Mix DeepBiasColor
+		mix_deep_bias_color = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		mix_deep_bias_color = cmds.rename(mix_deep_bias_color, ("mix_deep_bias_color"))
+		setProperty(mix_deep_bias_color, "operation", 20)
+		connectProperty(shallow_biased_color_mix_middle_biased_color, "out", mix_deep_bias_color, "inputA")
+		connectProperty(mult_by_deep_color, "out", mix_deep_bias_color, "inputB")
+
+		# SSS radius result
+		connectProperty(mix_deep_bias_color, "out", rprMaterial, "subsurfaceRadius")
+
+		# Mix ShallowColor and MiddleColor
+		shallow_color_mix_middle_color = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		shallow_color_mix_middle_color = cmds.rename(shallow_color_mix_middle_color, ("shallow_color_mix_middle_color"))
+		setProperty(shallow_color_mix_middle_color, "operation", 20)
+		if mapDoesNotExist(rsMaterial, "shallow_color"):
+			copyProperty(shallow_color_mix_middle_color, rsMaterial, "inputA", "shallow_color")
+		else:
+			connectProperty(shallow_color_map, "out", shallow_color_mix_middle_color, "inputA")
+		if mapDoesNotExist(rsMaterial, "mid_color"):
+			copyProperty(shallow_color_mix_middle_color, rsMaterial, "inputB", "mid_color")
+		else:
+			connectProperty(mid_color_map, "out", shallow_color_mix_middle_color, "inputB")
+
+		# Mix DeepColor
+		mix_deep_color = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		mix_deep_color = cmds.rename(mix_deep_color, ("mix_deep_color"))
+		setProperty(mix_deep_color, "operation", 20)
+		connectProperty(shallow_color_mix_middle_color, "out", mix_deep_color, "inputA")
+		if mapDoesNotExist(rsMaterial, "deep_color"):
+			copyProperty(mix_deep_color, rsMaterial, "inputB", "deep_color")
+		else:
+			connectProperty(deep_color_map, "out", mix_deep_color, "inputB")
+		
+
+		# volume scatter
+		connectProperty(mix_deep_color, "out", rprMaterial, "volumeScatter")
+
+		# Color Correction
+		color_correction = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		color_correction = cmds.rename(color_correction, ("color_correction"))
+		setProperty(color_correction, "operation", 2)
+		connectProperty(mix_deep_color, "out", color_correction, "inputA")
+		setProperty(color_correction, "inputB", (1.3, 1.3, 1.3))
+
+		# backscattering color & diffuse color
+		connectProperty(color_correction, "out", rprMaterial, "diffuseColor")
+		connectProperty(color_correction, "out", rprMaterial, "backscatteringColor")
+
+		# Logging in file
+		end_log(rsMaterial)
+
+	if source:
+		rprMaterial += "." + source
+	return rprMaterial
+
+
 #############################
 ## RedshiftMatteShadowCatcher 
 #############################
@@ -2015,20 +2228,33 @@ def convertRedshiftSubSurfaceScatter(rsMaterial, source):
 			connectProperty(rprMaterial, "outColor", sg, "surfaceShader")
 			 
 		# Enable properties, which are default in RedShift
-		setProperty(rprMaterial, "sssEnable", 1)
-		setProperty(rprMaterial, "separateBackscatterColor", 1)
+		if getProperty(rsMaterial, "scatter_radius") >= 0.01:
+			setProperty(rprMaterial, "sssEnable", 1)
+
+		scatter_color = getProperty(rsMaterial, "scatter_color")
+		if sum(scatter_color) / len(scatter_color) >= 0.01:
+			setProperty(rprMaterial, "separateBackscatterColor", 1)
+
 		setProperty(rprMaterial, "reflections", 1)
 			
 		# Logging to file
 		start_log(rsMaterial, rprMaterial)   
 
 		# Fields conversion
-		setProperty(rprMaterial, "diffuseWeight", 0.2)
-		setProperty(rprMaterial, "backscatteringWeight", 0.8)
+		setProperty(rprMaterial, "diffuseWeight", 1)
+		setProperty(rprMaterial, "diffuseRoughness", 0)
+		setProperty(rprMaterial, "backscatteringWeight", 0.5)
 		copyProperty(rprMaterial, rsMaterial, "reflectIOR", "ior")
-		copyProperty(rprMaterial, rsMaterial, "diffuseColor", "sub_surface_color")
 		copyProperty(rprMaterial, rsMaterial, "volumeScatter", "sub_surface_color")
-		copyProperty(rprMaterial, rsMaterial, "backscatteringColor", "scatter_color")
+
+		sub_surface_color = getProperty(rsMaterial, "sub_surface_color")
+		diffuseColor = (clampValue(sub_surface_color[0] * 1.59, 0, 1), clampValue(sub_surface_color[1] * 1.59, 0, 1), clampValue(sub_surface_color[2] * 1.59, 0, 1))
+		setProperty(rprMaterial, "diffuseColor", diffuseColor)
+		
+		if sum(sub_surface_color) / len(sub_surface_color) < 0.255:
+			setProperty(rprMaterial, "backscatteringColor", (sub_surface_color[0] * 3.5, sub_surface_color[1] * 3.5, sub_surface_color[2] * 3.5))
+		else:
+			setProperty(rprMaterial, "backscatteringColor", (sub_surface_color[0] * 1.59, sub_surface_color[1] * 1.59, sub_surface_color[2] * 1.59))
 
 		if mapDoesNotExist(rsMaterial, "scatter_color"):   
 			radius = getProperty(rsMaterial, "scatter_radius")
@@ -2057,24 +2283,52 @@ def convertRedshiftSubSurfaceScatter(rsMaterial, source):
 	return rprMaterial
 
 
-def convertRedshiftPhysicalSky(sky):
+def convertRedshiftPhysicalSky(rsSky):
 	
 	# create RPRSky node
 	skyNode = cmds.createNode("RPRSky", n="RPRSkyShape")
   
 	# Logging to file
-	start_log(sky, skyNode)
+	start_log(rsSky, skyNode)
 
 	# Copy properties from rsPhysicalSky
-	setProperty(skyNode, "turbidity", getProperty(sky, "haze"))
-	setProperty(skyNode, "intensity", getProperty(sky, "multiplier"))
-	setProperty(skyNode, "groundColor", getProperty(sky, "ground_color"))
-	setProperty(skyNode, "filterColor", getProperty(sky, "night_color"))
-	setProperty(skyNode, "sunDiskSize", getProperty(sky, "sun_disk_scale"))
-	setProperty(skyNode, "sunGlow", getProperty(sky, "sun_glow_intensity"))
+	setProperty(skyNode, "intensity", getProperty(rsSky, "multiplier") * 2)
+	copyProperty(skyNode, rsSky, "turbidity", "haze")
+	copyProperty(skyNode, rsSky, "groundColor", "ground_color")
+	copyProperty(skyNode, rsSky, "filterColor", "night_color")
+	copyProperty(skyNode, rsSky, "sunDiskSize", "sun_disk_scale")
+	copyProperty(skyNode, rsSky, "sunGlow", "sun_glow_intensity")
 
 	# Logging to file
-	end_log(sky)  
+	end_log(rsSky)  
+
+
+def convertRedshiftPhysicalSun(rsSun):
+
+	sunTransfrom = cmds.listRelatives(rsSun, p=True)[0]
+	directionalLight = cmds.createNode("RPRPhysicalLight", n="RPRPhysicalLightShape")
+	directionalLightTransform = cmds.listRelatives(directionalLight, p=True)[0]
+
+	# Logging to file
+	start_log(rsSun, directionalLight)
+
+	copyProperty(directionalLightTransform, sunTransfrom, "translate", "translate")
+	copyProperty(directionalLightTransform, sunTransfrom, "rotate", "rotate")
+	copyProperty(directionalLightTransform, sunTransfrom, "scale", "scale")
+
+	skyNode = cmds.listConnections(rsSun, type="RedshiftPhysicalSky")[0]
+	setProperty(directionalLight, "lightType", 3)
+	setProperty(directionalLight, "intensityUnits", 3)
+	setProperty(directionalLight, "lightIntensity", getProperty(skyNode, "multiplier") * 400)
+	setProperty(directionalLight, "colorPicker", (1, 1, 1))
+
+	allUberMaterials = cmds.ls(type="RPRUberMaterial")
+	for uber in allUberMaterials:
+		if getProperty(uber, "refraction"):
+			setProperty(uber, "refractAllowCaustics", True)
+
+	# Logging to file
+	end_log(rsSun)  
 
 
 def convertRedshiftEnvironment(env):
@@ -2086,9 +2340,7 @@ def convertRedshiftEnvironment(env):
 		# create IBL node
 		iblShape = cmds.createNode("RPRIBL", n="RPRIBLShape")
 		iblTransform = cmds.listRelatives(iblShape, p=True)[0]
-		setProperty(iblTransform, "scaleX", 1001.25663706144)
-		setProperty(iblTransform, "scaleY", 1001.25663706144)
-		setProperty(iblTransform, "scaleZ", 1001.25663706144)
+		setProperty(iblTransform, "scale", (1001.25663706144, 1001.25663706144, 1001.25663706144))
 
 	# Logging to file 
 	start_log(env, iblShape)
@@ -2104,9 +2356,7 @@ def convertRedshiftEnvironment(env):
 		copyProperty(iblTransform, env, "filePath", "tex0")
 
 	envTransform = cmds.listConnections(env, type="place3dTexture")[0]
-	copyProperty(iblTransform, envTransform, "rotateX", "rotateX")
-	copyProperty(iblTransform, envTransform, "rotateY", "rotateY")
-	copyProperty(iblTransform, envTransform, "rotateZ", "rotateZ")
+	copyProperty(iblTransform, envTransform, "rotate", "rotate")
 
 	# Logging to file
 	end_log(env)  
@@ -2121,9 +2371,7 @@ def convertRedshiftDomeLight(dome_light):
 		# create IBL node
 		iblShape = cmds.createNode("RPRIBL", n="RPRIBLShape")
 		iblTransform = cmds.listRelatives(iblShape, p=True)[0]
-		setProperty(iblTransform, "scaleX", 1001.25663706144)
-		setProperty(iblTransform, "scaleY", 1001.25663706144)
-		setProperty(iblTransform, "scaleZ", 1001.25663706144)
+		setProperty(iblTransform, "scale", (1001.25663706144, 1001.25663706144, 1001.25663706144))
 
 	# Logging to file 
 	start_log(dome_light, iblShape)
@@ -2139,6 +2387,14 @@ def convertRedshiftDomeLight(dome_light):
 	domeTransform = cmds.listRelatives(dome_light, p=True)[0]
 	rotateY = getProperty(domeTransform, "rotateY") - 90
 	setProperty(iblTransform, "rotateY", rotateY)
+
+	# back plane
+	if getProperty(dome_light, "backPlateEnabled"):
+		imgPlane = cmds.imagePlane()
+		copyProperty(imgPlane, dome_light, "imageName", "tex1")
+		cameras = cmds.ls(type="camera")
+		for cam in cameras:
+			connectProperty(imgPlane[1], "message", cam, "imagePlane[0]")
 
 	# Logging to file
 	end_log(dome_light)  
@@ -2171,15 +2427,9 @@ def convertRedshiftPhysicalLight(rs_light):
 	start_log(rs_light, rprLightShape)
 
 	# Copy properties from rsLight
-	copyProperty(rprTransform, rsTransform, "translateX", "translateX")
-	copyProperty(rprTransform, rsTransform, "translateY", "translateY")
-	copyProperty(rprTransform, rsTransform, "translateZ", "translateZ")
-	copyProperty(rprTransform, rsTransform, "rotateX", "rotateX")
-	copyProperty(rprTransform, rsTransform, "rotateY", "rotateY")
-	copyProperty(rprTransform, rsTransform, "rotateZ", "rotateZ")
-	copyProperty(rprTransform, rsTransform, "scaleX", "scaleX")
-	copyProperty(rprTransform, rsTransform, "scaleY", "scaleY")
-	copyProperty(rprTransform, rsTransform, "scaleZ", "scaleZ")
+	copyProperty(rprTransform, rsTransform, "translate", "translate")
+	copyProperty(rprTransform, rsTransform, "rotate", "rotate")
+	copyProperty(rprTransform, rsTransform, "scale", "scale")
 
 	lightType = getProperty(rs_light, "lightType")
 	light_type_map = {
@@ -2424,7 +2674,7 @@ def convertRedshiftPortalLight(rs_light):
 	copyProperty(rprTransform, rsTransform, "scale", "scale")
 
 	# Logging to file
-	end_log(rs_light)  
+	end_log(rs_light) 
 
 
 def convertRedshiftIESLight(rs_light): 
@@ -2485,6 +2735,7 @@ def convertRedshiftVolumeScattering(rsVolumeScattering):
 	setProperty("Volume", "scale", (999, 999, 999))
 
 	# assign material
+	cmds.select(cl=True)
 	cmds.select("Volume")
 	cmds.sets(e=True, forceElement=sg)
 
@@ -2517,7 +2768,7 @@ def convertMaterial(rsMaterial, source):
 		"RedshiftMaterialBlender": convertRedshiftMaterialBlender,
 		"RedshiftMatteShadowCatcher": convertRedshiftMatteShadowCatcher,
 		"RedshiftShaderSwitch": convertUnsupportedMaterial,
-		"RedshiftSkin": convertUnsupportedMaterial,
+		"RedshiftSkin": convertRedshiftSkin,
 		"RedshiftSprite": convertRedshiftSprite,
 		"RedshiftSubSurfaceScatter": convertRedshiftSubSurfaceScatter,
 		##utilities
@@ -2553,8 +2804,8 @@ def convertLight(light):
 		"RedshiftPhysicalLight": convertRedshiftPhysicalLight,
 		"RedshiftDomeLight": convertRedshiftDomeLight,
 		"RedshiftPortalLight": convertRedshiftPortalLight,
-		#"RedshiftPhysicalSun": convertRedshiftPhysicalSun,
 		"RedshiftIESLight": convertRedshiftIESLight,
+		"RedshiftPhysicalSun": convertRedshiftPhysicalSun
 	}
 
 	conversion_func[rs_type](light)
@@ -2610,6 +2861,10 @@ def remap_value(value, maxInput, minInput, maxOutput, minOutput):
 	remapped_value = minOutput + ((float(value - minInput) / float(inputDiff)) * outputDiff)
 
 	return remapped_value
+
+
+def clampValue(value, minValue, maxValue):
+	return max(min(value, maxValue), minValue)
 
 
 def checkAssign(material):
@@ -2704,9 +2959,26 @@ def convertScene():
 	try:
 		setProperty("defaultRenderGlobals","currentRenderer", "FireRender")
 		setProperty("defaultRenderGlobals", "imageFormat", 8)
-		setProperty("RadeonProRenderGlobals", "completionCriteriaIterations", getProperty("redshiftOptions", "progressiveRenderingNumPasses") * 1.5)
+
+		setProperty("RadeonProRenderGlobals", "completionCriteriaSeconds", 0)
+		if getProperty("redshiftOptions", "progressiveRenderingEnabled"):
+			setProperty("RadeonProRenderGlobals", "adaptiveThreshold", 0)
+			setProperty("RadeonProRenderGlobals", "completionCriteriaIterations", getProperty("redshiftOptions", "progressiveRenderingNumPasses") * 1.5)
+		else:
+			copyProperty("RadeonProRenderGlobals", "redshiftOptions", "adaptiveThreshold", "unifiedAdaptiveErrorThreshold")
+			if getProperty("redshiftOptions", "unifiedMinSamples") >= 16:
+				copyProperty("RadeonProRenderGlobals", "redshiftOptions", "completionCriteriaMinIterations", "unifiedMinSamples")
+			else:
+				setProperty("RadeonProRenderGlobals", "completionCriteriaMinIterations", 16)
+			copyProperty("RadeonProRenderGlobals", "redshiftOptions", "completionCriteriaIterations", "unifiedMaxSamples")
+
 		setProperty("RadeonProRenderGlobals", "giClampIrradiance", 1)
 		setProperty("RadeonProRenderGlobals", "giClampIrradianceValue", 5)
+
+		rsSubSurfaceScatter = cmds.ls(type="RedshiftSubSurfaceScatter")
+		if rsSubSurfaceScatter:
+			setProperty("RadeonProRenderGlobals", "maxDepthDiffuse", 12)
+			setProperty("RadeonProRenderGlobals", "maxRayDepth ", 12)
 
 		copyProperty("RadeonProRenderGlobals", "redshiftOptions", "maxDepthGlossy", "reflectionMaxTraceDepth")
 		copyProperty("RadeonProRenderGlobals", "redshiftOptions", "maxDepthRefraction", "refractionMaxTraceDepth")
@@ -2714,6 +2986,11 @@ def convertScene():
 		copyProperty("RadeonProRenderGlobals", "redshiftOptions", "filter", "unifiedFilterType")
 		copyProperty("RadeonProRenderGlobals", "redshiftOptions", "motionBlur", "motionBlurEnable")
 		copyProperty("RadeonProRenderGlobals", "redshiftOptions", "motionBlurScale", "motionBlurFrameDuration")
+
+		cameras = cmds.ls(type="camera")
+		for cam in cameras:
+			setProperty(cam, "mask", False)
+
 	except:
 		pass
 
@@ -2726,15 +3003,15 @@ def convertScene():
 		except Exception as ex:
 			traceback.print_exc()
 
-	rsPhotographicExposure = cmds.ls(type="RedshiftPhotographicExposure")
-	if rsPhotographicExposure:
-		if getProperty(rsPhotographicExposure[0], "enable"):
+	rsPostEffects = cmds.listConnections("redshiftOptions", type="RedshiftPostEffects")
+	if rsPostEffects:
+		if getProperty(rsPostEffects[0], "tonemapEnable"):
 			setProperty("RadeonProRenderGlobals", "toneMappingType", 2)
-			setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearSensitivity", getProperty(rsPhotographicExposure[0], "filmSpeed") / 100.0)
-			copyProperty("RadeonProRenderGlobals", rsPhotographicExposure[0], "toneMappingPhotolinearFstop", "fStop")
+			setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearSensitivity", getProperty(rsPostEffects[0], "tonemapFilmSpeed") / 100.0)
+			copyProperty("RadeonProRenderGlobals", rsPostEffects[0], "toneMappingPhotolinearFstop", "tonemapFstop")
 
-			reinhardFactor = getProperty(rsPhotographicExposure[0], "reinhardFactor")
-			shutterRatio = getProperty(rsPhotographicExposure[0], "shutterRatio")
+			reinhardFactor = getProperty(rsPostEffects[0], "tonemapReinhardFactor")
+			shutterRatio = getProperty(rsPostEffects[0], "tonemapShutterRatio")
 			if shutterRatio >= 800:
 				exposure = (3.3 * (10 / (shutterRatio + 400) ** 0.5) / math.log((shutterRatio - 770) ** 0.7)) * 2 ** reinhardFactor
 				setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure", exposure)
