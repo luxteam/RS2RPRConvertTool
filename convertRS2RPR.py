@@ -205,7 +205,7 @@ def copyProperty(rpr_name, conv_name, rpr_attr, conv_attr):
 
 			write_converted_property_log(rpr_name, conv_name, rpr_attr, conv_attr)
 	except Exception as ex:
-		traceback.print_exc()
+		traceback.F_exc()
 		print(u"Error while copying from {} to {}".format(conv_field, rpr_field).encode('utf-8'))
 
 
@@ -998,7 +998,7 @@ def convertRedshiftArchitectural(rsMaterial, source):
 		if emissive_weight > 0 and (emissive_color[0] > 0 or emissive_color[1] > 0 or emissive_color[2] > 0):
 			setProperty(rprMaterial, "emissive", True)
 			copyProperty(rprMaterial, rsMaterial, "emissiveColor", "additional_color")
-			copyProperty(rprMaterial, rsMaterial, "emissiveWeight", "incandescent_scale")
+			copyProperty(rprMaterial, rsMaterial, "emissiveIntensity", "incandescent_scale")
 
 		if getProperty(rsMaterial, "refr_translucency"):
 			setProperty(rprMaterial, "separateBackscatterColor", 1)
