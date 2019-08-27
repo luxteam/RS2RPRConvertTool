@@ -949,7 +949,7 @@ def convertRedshiftArchitectural(rsMaterial, source):
 				connectProperty(arithmetic, "out", rprMaterial, "reflectColor")
 
 		# sec reflection (Coat)
-		copyProperty(rprMaterial, rsMaterial, "coatWeight", "refl_base") 
+		setProperty(rprMaterial, "coatWeight", getProperty(rsMaterial, "refl_base") / 4)
 		copyProperty(rprMaterial, rsMaterial, "coatColor", "refl_base_color")
 
 		invertValue(rprMaterial, rsMaterial, "coatRoughness", "refl_base_gloss")
