@@ -176,7 +176,7 @@ def copyProperty(rpr_name, conv_name, rpr_attr, conv_attr):
 				copyProperty(rpr_name, conv_name, rpr_attr + "V", conv_attr + "V")
 		# field conversion
 		else:
-			if rs_type == rpr_type:
+			if rs_type == rpr_type or rs_type == unicode:
 				setProperty(rpr_name, rpr_attr, getProperty(conv_name, conv_attr))
 			elif rs_type == tuple and rpr_type == float:
 				if cmds.objExists(conv_field + "R"):
@@ -2171,7 +2171,7 @@ def convertRedshiftEnvironment(env):
 
 	texMode = getProperty(env, "texMode")
 	if texMode == 0: # default
-		copyProperty(iblTransform, env, "filePath", "tex0")
+		copyProperty(iblShape, env, "filePath", "tex0")
 
 	envTransform = cmds.listConnections(env, type="place3dTexture")[0]
 	copyProperty(iblTransform, envTransform, "rotate", "rotate")
@@ -2199,8 +2199,7 @@ def convertRedshiftDomeLight(dome_light):
 	setProperty(iblShape, "intensity", 1 * 2 ** exposure)
 
 	copyProperty(iblShape, dome_light, "display", "background_enable")
-
-	setProperty(iblTransform, "filePath", getProperty(dome_light, "tex0"))
+	copyProperty(iblShape, dome_light, "filePath", "tex0")
 	
 	domeTransform = cmds.listRelatives(dome_light, p=True)[0]
 	rotateY = getProperty(domeTransform, "rotateY") - 90
