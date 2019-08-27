@@ -1383,7 +1383,11 @@ def convertRedshiftMaterial(rsMaterial, source):
 		start_log(rsMaterial, rprMaterial)
 
 		# Fields conversion
-		copyProperty(rprMaterial, rsMaterial, "diffuseColor", "diffuse_color")
+		diffuse_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(diffuse_arith, "operation", 2)
+		copyProperty(diffuse_arith, rsMaterial, "inputA", "diffuse_color")
+		copyProperty(diffuse_arith, rsMaterial, "inputB", "overall_color")
+		connectProperty(diffuse_arith, "out", rprMaterial, "diffuseColor")
 		copyProperty(rprMaterial, rsMaterial, "diffuseWeight", "diffuse_weight")
 		copyProperty(rprMaterial, rsMaterial, "diffuseRoughness", "diffuse_roughness")
 
@@ -1402,12 +1406,22 @@ def convertRedshiftMaterial(rsMaterial, source):
 				connection = cmds.listConnections(rsMaterial + ".refl_color", type="file")
 				if connection:
 					setProperty(connection[0], "colorSpace", "Raw")
-			copyProperty(rprMaterial, rsMaterial, "reflectColor", "refl_color")
+
+			refl_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(refl_arith, "operation", 2)
+			copyProperty(refl_arith, rsMaterial, "inputA", "refl_color")
+			copyProperty(refl_arith, rsMaterial, "inputB", "overall_color")
+			connectProperty(refl_arith, "out", rprMaterial, "reflectColor")
 
 		elif refl_fr_mode == 2:
 
 			blend_value = cmds.shadingNode("RPRBlendValue", asUtility=True)
-			connectProperty(blend_value, "out", rprMaterial, "reflectColor")
+
+			refl_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(refl_arith, "operation", 2)
+			connectProperty(blend_value, "out", refl_arith, "inputA")
+			copyProperty(refl_arith, rsMaterial, "inputB", "overall_color")
+			connectProperty(refl_arith, "out", rprMaterial, "reflectColor")
 
 			# blend color from diffuse and reflectivity to reflect color
 			# no_rpr_analog
@@ -1427,7 +1441,12 @@ def convertRedshiftMaterial(rsMaterial, source):
 			edge_tint = getProperty(rsMaterial, "refl_edge_tint")
 
 			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			connectProperty(arithmetic, "out", rprMaterial, "reflectColor")
+
+			refl_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(refl_arith, "operation", 2)
+			connectProperty(arithmetic, "out", refl_arith, "inputA")
+			copyProperty(refl_arith, rsMaterial, "inputB", "overall_color")
+			connectProperty(refl_arith, "out", rprMaterial, "reflectColor")
 
 			blend_value = cmds.shadingNode("RPRBlendValue", asUtility=True)
 			connectProperty(blend_value, "out", arithmetic, "inputB")
@@ -1487,9 +1506,19 @@ def convertRedshiftMaterial(rsMaterial, source):
 				connection = cmds.listConnections(rsMaterial + ".refl_color", type="file")
 				if connection:
 					setProperty(connection[0], "colorSpace", "Raw")
-			copyProperty(rprMaterial, rsMaterial, "reflectColor", "refl_color")
 
-		copyProperty(rprMaterial, rsMaterial, "refractColor", "refr_color")
+			refl_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(refl_arith, "operation", 2)
+			copyProperty(refl_arith, rsMaterial, "inputA", "refl_color")
+			copyProperty(refl_arith, rsMaterial, "inputB", "overall_color")
+			connectProperty(refl_arith, "out", rprMaterial, "reflectColor")
+
+		refr_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(refr_arith, "operation", 2)
+		copyProperty(refr_arith, rsMaterial, "inputA", "refr_color")
+		copyProperty(refr_arith, rsMaterial, "inputB", "overall_color")
+		connectProperty(refr_arith, "out", rprMaterial, "refractColor")
+
 		copyProperty(rprMaterial, rsMaterial, "refractWeight", "refr_weight")
 		copyProperty(rprMaterial, rsMaterial, "refractRoughness", "refr_roughness")
 		copyProperty(rprMaterial, rsMaterial, "refractIor", "refr_ior")
@@ -1515,7 +1544,12 @@ def convertRedshiftMaterial(rsMaterial, source):
 					absorption = 1 / getProperty(rsMaterial, "refr_absorption_scale")
 					setProperty(rprMaterial, "refractAbsorptionDistance", absorption)
 
-		copyProperty(rprMaterial, rsMaterial, "coatColor", "coat_color")
+		coat_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		setProperty(coat_arith, "operation", 2)
+		copyProperty(coat_arith, rsMaterial, "inputA", "coat_color")
+		copyProperty(coat_arith, rsMaterial, "inputB", "overall_color")
+		connectProperty(coat_arith, "out", rprMaterial, "coatColor")
+
 		copyProperty(rprMaterial, rsMaterial, "coatWeight", "coat_weight")
 		copyProperty(rprMaterial, rsMaterial, "coatRoughness", "coat_roughness")
 		copyProperty(rprMaterial, rsMaterial, "coatTransmissionColor", "coat_transmittance")
@@ -1524,7 +1558,15 @@ def convertRedshiftMaterial(rsMaterial, source):
 		if coat_fr_mode == 3:
 			copyProperty(rprMaterial, rsMaterial, "coatIor", "coat_ior")
 
-		copyProperty(rprMaterial, rsMaterial, "emissiveColor", "emission_color")
+		if getProperty(rsMaterial, "overallAffectsEmission"):
+			emissive_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(emissive_arith, "operation", 2)
+			copyProperty(emissive_arith, rsMaterial, "inputA", "emission_color")
+			copyProperty(emissive_arith, rsMaterial, "inputB", "overall_color")
+			connectProperty(emissive_arith, "out", rprMaterial, "emissiveColor")
+		else:
+			copyProperty(rprMaterial, rsMaterial, "emissiveColor", "emission_color")
+
 		copyProperty(rprMaterial, rsMaterial, "emissiveWeight", "emission_weight")
 		copyProperty(rprMaterial, rsMaterial, "emissiveIntensity", "emission_weight")
 
