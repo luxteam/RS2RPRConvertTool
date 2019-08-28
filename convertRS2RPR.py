@@ -618,24 +618,39 @@ def convertRedshiftBumpMap(rs, source):
 		inputType = getProperty(rs, "inputType")
 		if inputType == 0:
 			rpr = cmds.shadingNode("RPRBump", asUtility=True)
+			rpr = cmds.rename(rpr, rs + "_rpr")
+
+			# Logging to file
+			start_log(rs, rpr)
+
+			# Fields conversion
+			setProperty(rpr, "strength", getProperty(rs, "scale") * 4)
+			copyProperty(rpr, rs, "color", "input")
+
+			# Logging to file
+			end_log(rs)
+
 		elif inputType == 1:
 			rpr = cmds.shadingNode("RPRNormal", asUtility=True)
+			rpr = cmds.rename(rpr, rs + "_rpr")
+
+			# Logging to file
+			start_log(rs, rpr)
+
+			# Fields conversion
+			copyProperty(rpr, rs, "strength", "scale")
+			copyProperty(rpr, rs, "color", "input")
+
+			# Logging to file
+			end_log(rs)
+
 		elif inputType == 2:
 			rpr = cmds.shadingNode("RPRNormal", asUtility=True)
-			print(u"Bump map conversion ({}) is incorrect. You need conversion into Tangent Space.".format(rs).encode('utf-8'))
-
-		rpr = cmds.rename(rpr, rs + "_rpr")
-
-		# Logging to file
-		start_log(rs, rpr)
-
-		# Fields conversion
-		copyProperty(rpr, rs, "strength", "scale")
-		copyProperty(rpr, rs, "color", "input")
-
-		# Logging to file
-		end_log(rs)
-
+			rpr = cmds.rename(rpr, rs + "_UNSUPPORTED_NORMAL")
+			# Logging to file
+			start_log(rs, rpr)
+			end_log(rs)
+		
 	rpr += "." + source
 	return rpr
 
