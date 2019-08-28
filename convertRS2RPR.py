@@ -1543,15 +1543,29 @@ def convertRedshiftMaterial(rsMaterial, source):
 		# maps doesn't support ( will work incorrectly )
 		ss_unitsMode = getProperty(rsMaterial, "ss_unitsMode")
 		if ss_unitsMode:
-			if mapDoesNotExist(rsMaterial, "ss_extinction_coeff"):
-				ss_ext_coeff = getProperty(rsMaterial, "ss_extinction_coeff")
-				absorb_color = (1 - ss_ext_coeff[0], 1 - ss_ext_coeff[1], 1 - ss_ext_coeff[2])
-				setProperty(rprMaterial, "refractAbsorbColor", absorb_color)
+			setProperty(rprMaterial, "diffuse", 1)
+			setProperty(rprMaterial, "diffuseWeight", 1)
 
-			if mapDoesNotExist(rsMaterial, "ss_extinction_scale"):
-				if getProperty(rsMaterial, "ss_extinction_scale"):
-					absorption = 1 / getProperty(rsMaterial,  "ss_extinction_scale")
-					setProperty(rprMaterial, "refractAbsorptionDistance", absorption)
+			arith1 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(arith1, "operation", 1)
+			setProperty(arith1, "inputA", (1, 1, 1))
+			copyProperty(arith1, rsMaterial, "inputB", "ss_extinction_coeff")
+			connectProperty(arith1, "out", rprMaterial, "refractAbsorbColor")
+
+			ss_ext_coeff = getProperty(rsMaterial, "ss_extinction_coeff")
+			if ss_ext_coeff[0] > 1 or ss_ext_coeff[1] > 1 or ss_ext_coeff[2] > 1:
+				setProperty(rprMaterial, "refraction", 0)
+				setProperty(rprMaterial, "separateBackscatterColor", 1)
+				setProperty(rprMaterial, "backscatteringWeight", 0.5)
+				connectProperty(arith1, "out", rprMaterial, "backscatteringColor")
+
+			if getProperty(rsMaterial, "ss_extinction_scale"):
+				arith2 = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(arith2, "operation", 3)
+				setProperty(arith2, "inputA", (1, 1, 1))
+				copyProperty(arith2, rsMaterial, "inputB", "ss_extinction_scale")
+				connectProperty(arith2, "out", rprMaterial, "refractAbsorptionDistance")
+
 		else:
 			copyProperty(rprMaterial, rsMaterial, "refractAbsorbColor", "refr_transmittance")
 			if mapDoesNotExist(rsMaterial, "refr_absorption_scale"):
@@ -1585,7 +1599,8 @@ def convertRedshiftMaterial(rsMaterial, source):
 		copyProperty(rprMaterial, rsMaterial, "emissiveWeight", "emission_weight")
 		copyProperty(rprMaterial, rsMaterial, "emissiveIntensity", "emission_weight")
 
-		copyProperty(rprMaterial, rsMaterial, "backscatteringWeight", "ms_amount")
+		if not ss_unitsMode:
+			copyProperty(rprMaterial, rsMaterial, "backscatteringWeight", "ms_amount")
 		copyProperty(rprMaterial, rsMaterial, "sssWeight", "ms_amount")
 
 		backscatteringWeight = getProperty(rsMaterial, "transl_weight")
