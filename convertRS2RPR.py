@@ -205,7 +205,7 @@ def copyProperty(rpr_name, conv_name, rpr_attr, conv_attr):
 
 			write_converted_property_log(rpr_name, conv_name, rpr_attr, conv_attr)
 	except Exception as ex:
-		traceback.print_exc()
+		traceback.F_exc()
 		print(u"Error while copying from {} to {}".format(conv_field, rpr_field).encode('utf-8'))
 
 
