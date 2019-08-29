@@ -1015,6 +1015,7 @@ def convertRedshiftArchitectural(rsMaterial, source):
 			copyProperty(rprMaterial, rsMaterial, "emissiveColor", "additional_color")
 			copyProperty(rprMaterial, rsMaterial, "emissiveIntensity", "incandescent_scale")
 
+
 		if getProperty(rsMaterial, "refr_translucency"):
 			setProperty(rprMaterial, "separateBackscatterColor", 1)
 
