@@ -960,7 +960,11 @@ def convertRedshiftArchitectural(rsMaterial, source):
 					if connection:
 						setProperty(connection[0], "colorSpace", "Raw")
 				copyProperty(arithmetic, rsMaterial, "inputB", "refl_color")
-				setProperty(arithmetic, "operation", 2)
+				metalMaterial = getProperty(rsMaterial, "refl_is_metal")
+				if metalMaterial:
+					setProperty(arithmetic, "operation", 2)
+				else:
+					setProperty(arithmetic, "operation", 20)
 				connectProperty(arithmetic, "out", rprMaterial, "reflectColor")
 
 		# sec reflection (Coat)
