@@ -444,6 +444,365 @@ def convertbump2d(rs, source):
 	return rpr
 
 
+def convertBlendColors(rs, source):
+
+	if cmds.objExists(rs + "_rpr"):
+		rpr = rs + "_rpr"
+	else:
+		rpr = cmds.shadingNode("RPRBlendValue", asUtility=True)
+		rpr = cmds.rename(rpr, rs + "_rpr")
+
+		# Logging to file
+		start_log(rs, rpr)
+
+		# Fields conversion
+		copyProperty(rpr, rs, "inputA", "color1")
+		copyProperty(rpr, rs, "inputB", "color2")
+		copyProperty(rpr, rs, "weight", "blender")
+
+		# Logging to file
+		end_log(rs)
+
+	conversion_map = {
+		"output": "out",
+		"outputR": "outR",
+		"outputG": "outG",
+		"outputB": "outB"
+	}
+
+	rpr += "." + conversion_map[source]
+	return rpr
+
+
+def convertLuminance(rs, source):
+
+	if cmds.objExists(rs + "_rpr"):
+		rpr = rs + "_rpr"
+	else:
+		rpr = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		rpr = cmds.rename(rpr, rs + "_rpr")
+
+		# Logging to file
+		start_log(rs, rpr)
+
+		# Fields conversion
+		copyProperty(rpr, rs, "inputA", "value")
+		setProperty(rpr, "inputB", (0, 0, 0))
+		setProperty(rpr, "operation", 19)
+
+		# Logging to file
+		end_log(rs)
+
+	conversion_map = {
+		"outValue": "outX"
+	}
+
+	rpr += "." + conversion_map[source]
+	return rpr
+
+
+def convertColorComposite(rs, source):
+
+	operation = getProperty(rs, "operation")
+	if operation == 2:
+		if cmds.objExists(rs + "_rpr"):
+			rpr = rs + "_rpr"
+		else:
+			rpr = cmds.shadingNode("RPRBlendValue", asUtility=True)
+			rpr = cmds.rename(rpr, rs + "_rpr")
+
+			# Logging to file
+			start_log(rs, rpr)
+
+			# Fields conversion
+			copyProperty(rpr, rs, "inputA", "alphaA")
+			copyProperty(rpr, rs, "inputB", "alphaB")
+			copyProperty(rpr, rs, "weight", "factor")
+			
+
+			# Logging to file
+			end_log(rs)
+
+		conversion_map = {
+			"outAlpha": "outR"
+		}
+
+		rpr += "." + conversion_map[source]
+		return rpr
+
+	else:
+
+		if cmds.objExists(rs + "_rpr"):
+			rpr = rs + "_rpr"
+		else:
+			rpr = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			rpr = cmds.rename(rpr, rs + "_rpr")
+
+			# Logging to file
+			start_log(rs, rpr)
+
+			# Fields conversion
+			if operation in (0, 4, 5):
+				setProperty(rpr, "operation", 0)
+				if source == "outAlpha":
+					copyProperty(rpr, rs, "inputA", "alphaA")
+					copyProperty(rpr, rs, "inputB", "alphaB")
+				else:
+					copyProperty(rpr, rs, "inputA", "colorA")
+					copyProperty(rpr, rs, "inputB", "colorB")
+			elif operation == 1:
+				if source == "outAlpha":
+					if mapDoesNotExist(rs, "alphaA") and mapDoesNotExist(rs, "alphaB"):
+						alphaA = getProperty(rs, alphaA)
+						alphaB = getProperty(rs, alphaB)
+						if alphaA > alphaB:
+							copyProperty(rpr, rs, "inputA", "alphaA")
+							copyProperty(rpr, rs, "inputB", "alphaB")
+						else:
+							copyProperty(rpr, rs, "inputA", "alphaB")
+							copyProperty(rpr, rs, "inputB", "alphaA")
+					elif mapDoesNotExist(rs, "alphaA"):
+						copyProperty(rpr, rs, "inputA", "alphaA")
+						copyProperty(rpr, rs, "inputB", "alphaB")
+					elif mapDoesNotExist(rs, "alphaB"):
+						copyProperty(rpr, rs, "inputA", "alphaB")
+						copyProperty(rpr, rs, "inputB", "alphaA")
+					else:
+						copyProperty(rpr, rs, "inputA", "alphaA")
+						copyProperty(rpr, rs, "inputB", "alphaB")
+				else:
+					if mapDoesNotExist(rs, "colorA") and mapDoesNotExist(rs, "colorB"):
+						colorA = getProperty(rs, alphaA)
+						colorB = getProperty(rs, colorB)
+						if colorA[0] > colorB[0] or colorA[1] > colorB[1] or colorA[2] > colorB[2]:
+							copyProperty(rpr, rs, "inputA", "colorA")
+							copyProperty(rpr, rs, "inputB", "colorB")
+						else:
+							copyProperty(rpr, rs, "inputA", "colorB")
+							copyProperty(rpr, rs, "inputB", "colorA")
+					elif mapDoesNotExist(rs, "colorA"):
+						copyProperty(rpr, rs, "inputA", "colorA")
+						copyProperty(rpr, rs, "inputB", "colorB")
+					elif mapDoesNotExist(rs, "colorB"):
+						copyProperty(rpr, rs, "inputA", "colorB")
+						copyProperty(rpr, rs, "inputB", "colorA")
+					else:
+						copyProperty(rpr, rs, "inputA", "colorA")
+						copyProperty(rpr, rs, "inputB", "colorB")
+			elif operation == 3:
+				setProperty(rpr, "operation", 2)
+				if source == "outAlpha":
+					copyProperty(rpr, rs, "inputA", "alphaA")
+					copyProperty(rpr, rs, "inputB", "alphaB")
+				else:
+					copyProperty(rpr, rs, "inputA", "colorA")
+					copyProperty(rpr, rs, "inputB", "colorB")
+			elif operation == 6:
+				setProperty(rpr, "operation", 1)
+				if source == "outAlpha":
+					if mapDoesNotExist(rs, "alphaA"):
+						copyProperty(rpr, rs, "inputB", "alphaA")
+						copyProperty(rpr, rs, "inputA", "alphaB")
+					else:
+						copyProperty(rpr, rs, "inputA", "alphaA")
+						copyProperty(rpr, rs, "inputB", "alphaB")
+				else:
+					if mapDoesNotExist(rs, "alphaA"):
+						copyProperty(rpr, rs, "inputB", "colorA")
+						copyProperty(rpr, rs, "inputA", "colorB")
+					else:
+						copyProperty(rpr, rs, "inputA", "colorA")
+						copyProperty(rpr, rs, "inputB", "colorB")
+			elif operation == 7:
+				setProperty(rpr, "operation", 25)
+				if source == "outAlpha":
+					copyProperty(rpr, rs, "inputA", "alphaB")
+					copyProperty(rpr, rs, "inputB", "alphaA")
+				else:
+					copyProperty(rpr, rs, "inputA", "colorB")
+					copyProperty(rpr, rs, "inputB", "colorA")
+			elif operation == 8:
+				setProperty(rpr, "operation", 20)
+				if source == "outAlpha":
+					copyProperty(rpr, rs, "inputA", "alphaA")
+					copyProperty(rpr, rs, "inputB", "alphaB")
+				else:
+					copyProperty(rpr, rs, "inputA", "colorA")
+					copyProperty(rpr, rs, "inputB", "colorB")
+
+
+			# Logging to file
+			end_log(rs)
+
+		conversion_map = {
+			"outAlpha": "outX",
+			"outColor": "out",
+			"outColorR": "outX",
+			"outColorG": "outY",
+			"outColorB": "outZ"
+		}
+
+		rpr += "." + conversion_map[source]
+		return rpr
+
+
+def convertReverse(rs, source):
+
+	if cmds.objExists(rs + "_rpr"):
+		rpr = rs + "_rpr"
+	else:
+		rpr = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		rpr = cmds.rename(rpr, rs + "_rpr")
+
+		# Logging to file
+		start_log(rs, rpr)
+
+		# Fields conversion
+		setProperty(rpr, "inputA", (1, 1, 1))
+		copyProperty(rpr, rs, "inputB", "input")
+		setProperty(rpr, "operation", 1)
+
+		# Logging to file
+		end_log(rs)
+
+	conversion_map = {
+		"output": "out",
+		"outputX": "outX",
+		"outputY": "outY",
+		"outputZ": "outZ"
+	}
+
+	rpr += "." + conversion_map[source]
+	return rpr
+
+
+def convertPreMultiply(rs, source):
+
+	if cmds.objExists(rs + "_rpr"):
+		rpr = rs + "_rpr"
+	else:
+		rpr = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		rpr = cmds.rename(rpr, rs + "_rpr")
+
+		# Logging to file
+		start_log(rs, rpr)
+
+		# Fields conversion
+		copyProperty(rpr, rs, "inputA", "inColor")
+		alpha = getProperty(rs, "inAlpha")
+		setProperty(rpr, "inputB", (alpha, alpha, alpha))
+		setProperty(rpr, "operation", 2)
+
+		# Logging to file
+		end_log(rs)
+
+	conversion_map = {
+		"outAlpha": "outX",
+		"outColor": "out",
+		"outColorR": "outX",
+		"outColorG": "outY",
+		"outColorB": "outZ"
+	}
+
+	rpr += "." + conversion_map[source]
+	return rpr
+
+
+def convertVectorProduct(rs, source):
+
+	operation = getProperty(rs, "operation")
+	if operation in (1, 2):
+		if cmds.objExists(rs + "_rpr"):
+			rpr = rs + "_rpr"
+		else:
+			rpr = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			rpr = cmds.rename(rpr, rs + "_rpr")
+
+			# Logging to file
+			start_log(rs, rpr)
+
+			# Fields conversion
+			if operation == 1:
+				setProperty(rpr, "operation", 11)
+			elif operation == 2:
+				setProperty(rpr, "operation", 12)
+
+			copyProperty(rpr, rs, "inputA", "input1")
+			copyProperty(rpr, rs, "inputB", "input2")
+
+			# Logging to file
+			end_log(rs)
+
+		conversion_map = {
+			"output": "out",
+			"outputX": "outX",
+			"outputY": "outY",
+			"outputZ": "outZ"
+		}
+
+		rpr += "." + conversion_map[source]
+		return rpr
+	else:
+		rs += "." + source
+		return rs
+
+
+def convertChannels(rs, source):
+
+	if "outColor" in source:
+
+		if cmds.objExists(rs + "_color_rpr"):
+			rpr = rs + "_color_rpr"
+		else:
+
+			rpr = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			rpr = cmds.rename(rpr, rs + "_color_rpr")
+
+			# Logging to file
+			start_log(rs, rpr)
+
+			# Fields conversion
+			copyProperty(rpr, rs, "inputA", "inColor")
+
+			# Logging to file
+			end_log(rs)
+
+		conversion_map = {
+			"outColor": "out",
+			"outColorR": "outX",
+			"outColorG": "outY",
+			"outColorB": "outZ"
+		}
+
+		rpr += "." + conversion_map[source]
+		return rpr
+
+	elif "outAlpha" in source:
+
+		if cmds.objExists(rs + "_alpha_rpr"):
+			rpr = rs + "_alpha_rpr"
+		else:
+
+			rpr = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			rpr = cmds.rename(rpr, rs + "_alpha_rpr")
+
+			# Logging to file
+			start_log(rs, rpr)
+
+			# Fields conversion
+			copyProperty(rpr, rs, "inputA", "inAlpha")
+
+			# Logging to file
+			end_log(rs)
+
+		conversion_map = {
+			"outAlpha": "outX"
+		}
+
+		rpr += "." + conversion_map[source]
+		return rpr
+
+
 def convertmultiplyDivide(rs, source):
 
 	if cmds.objExists(rs + "_rpr"):
@@ -1403,11 +1762,15 @@ def convertRedshiftMaterial(rsMaterial, source):
 		start_log(rsMaterial, rprMaterial)
 
 		# Fields conversion
-		diffuse_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(diffuse_arith, "operation", 2)
-		copyProperty(diffuse_arith, rsMaterial, "inputA", "diffuse_color")
-		copyProperty(diffuse_arith, rsMaterial, "inputB", "overall_color")
-		connectProperty(diffuse_arith, "out", rprMaterial, "diffuseColor")
+		overall_color = getProperty(rsMaterial, "overall_color")
+		if overall_color != (1.0, 1.0, 1.0):
+			diffuse_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(diffuse_arith, "operation", 2)
+			copyProperty(diffuse_arith, rsMaterial, "inputA", "diffuse_color")
+			copyProperty(diffuse_arith, rsMaterial, "inputB", "overall_color")
+			connectProperty(diffuse_arith, "out", rprMaterial, "diffuseColor")
+		else:
+			copyProperty(rprMaterial, rsMaterial, "diffuseColor", "diffuse_color")
 		copyProperty(rprMaterial, rsMaterial, "diffuseWeight", "diffuse_weight")
 		copyProperty(rprMaterial, rsMaterial, "diffuseRoughness", "diffuse_roughness")
 
@@ -1427,21 +1790,27 @@ def convertRedshiftMaterial(rsMaterial, source):
 				if connection:
 					setProperty(connection[0], "colorSpace", "Raw")
 
-			refl_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(refl_arith, "operation", 2)
-			copyProperty(refl_arith, rsMaterial, "inputA", "refl_color")
-			copyProperty(refl_arith, rsMaterial, "inputB", "overall_color")
-			connectProperty(refl_arith, "out", rprMaterial, "reflectColor")
+			if overall_color != (1.0, 1.0, 1.0):
+				refl_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(refl_arith, "operation", 2)
+				copyProperty(refl_arith, rsMaterial, "inputA", "refl_color")
+				copyProperty(refl_arith, rsMaterial, "inputB", "overall_color")
+				connectProperty(refl_arith, "out", rprMaterial, "reflectColor")
+			else:
+				copyProperty(rprMaterial, rsMaterial, "reflectColor", "refl_color")
 
 		elif refl_fr_mode == 2:
 
 			blend_value = cmds.shadingNode("RPRBlendValue", asUtility=True)
 
-			refl_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(refl_arith, "operation", 2)
-			connectProperty(blend_value, "out", refl_arith, "inputA")
-			copyProperty(refl_arith, rsMaterial, "inputB", "overall_color")
-			connectProperty(refl_arith, "out", rprMaterial, "reflectColor")
+			if overall_color != (1.0, 1.0, 1.0):
+				refl_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(refl_arith, "operation", 2)
+				connectProperty(blend_value, "out", refl_arith, "inputA")
+				copyProperty(refl_arith, rsMaterial, "inputB", "overall_color")
+				connectProperty(refl_arith, "out", rprMaterial, "reflectColor")
+			else:
+				connectProperty(blend_value, "out", rprMaterial, "reflectColor")
 
 			# blend color from diffuse and reflectivity to reflect color
 			# no_rpr_analog
@@ -1462,11 +1831,14 @@ def convertRedshiftMaterial(rsMaterial, source):
 
 			arithmetic = cmds.shadingNode("RPRArithmetic", asUtility=True)
 
-			refl_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(refl_arith, "operation", 2)
-			connectProperty(arithmetic, "out", refl_arith, "inputA")
-			copyProperty(refl_arith, rsMaterial, "inputB", "overall_color")
-			connectProperty(refl_arith, "out", rprMaterial, "reflectColor")
+			if overall_color != (1.0, 1.0, 1.0):
+				refl_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(refl_arith, "operation", 2)
+				connectProperty(arithmetic, "out", refl_arith, "inputA")
+				copyProperty(refl_arith, rsMaterial, "inputB", "overall_color")
+				connectProperty(refl_arith, "out", rprMaterial, "reflectColor")
+			else:
+				connectProperty(arithmetic, "out", rprMaterial, "reflectColor")
 
 			blend_value = cmds.shadingNode("RPRBlendValue", asUtility=True)
 			connectProperty(blend_value, "out", arithmetic, "inputB")
@@ -1527,17 +1899,23 @@ def convertRedshiftMaterial(rsMaterial, source):
 				if connection:
 					setProperty(connection[0], "colorSpace", "Raw")
 
-			refl_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
-			setProperty(refl_arith, "operation", 2)
-			copyProperty(refl_arith, rsMaterial, "inputA", "refl_color")
-			copyProperty(refl_arith, rsMaterial, "inputB", "overall_color")
-			connectProperty(refl_arith, "out", rprMaterial, "reflectColor")
+			if overall_color != (1.0, 1.0, 1.0):
+				refl_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
+				setProperty(refl_arith, "operation", 2)
+				copyProperty(refl_arith, rsMaterial, "inputA", "refl_color")
+				copyProperty(refl_arith, rsMaterial, "inputB", "overall_color")
+				connectProperty(refl_arith, "out", rprMaterial, "reflectColor")
+			else:
+				copyProperty(rprMaterial, rsMaterial, "reflectColor", "refl_color")
 
-		refr_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(refr_arith, "operation", 2)
-		copyProperty(refr_arith, rsMaterial, "inputA", "refr_color")
-		copyProperty(refr_arith, rsMaterial, "inputB", "overall_color")
-		connectProperty(refr_arith, "out", rprMaterial, "refractColor")
+		if overall_color != (1.0, 1.0, 1.0):
+			refr_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(refr_arith, "operation", 2)
+			copyProperty(refr_arith, rsMaterial, "inputA", "refr_color")
+			copyProperty(refr_arith, rsMaterial, "inputB", "overall_color")
+			connectProperty(refr_arith, "out", rprMaterial, "refractColor")
+		else:
+			copyProperty(rprMaterial, rsMaterial, "refractColor", "refr_color")
 
 		copyProperty(rprMaterial, rsMaterial, "refractWeight", "refr_weight")
 		copyProperty(rprMaterial, rsMaterial, "refractRoughness", "refr_roughness")
@@ -1578,11 +1956,14 @@ def convertRedshiftMaterial(rsMaterial, source):
 					absorption = 1 / getProperty(rsMaterial, "refr_absorption_scale")
 					setProperty(rprMaterial, "refractAbsorptionDistance", absorption)
 
-		coat_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		setProperty(coat_arith, "operation", 2)
-		copyProperty(coat_arith, rsMaterial, "inputA", "coat_color")
-		copyProperty(coat_arith, rsMaterial, "inputB", "overall_color")
-		connectProperty(coat_arith, "out", rprMaterial, "coatColor")
+		if overall_color != (1.0, 1.0, 1.0):
+			coat_arith = cmds.shadingNode("RPRArithmetic", asUtility=True)
+			setProperty(coat_arith, "operation", 2)
+			copyProperty(coat_arith, rsMaterial, "inputA", "coat_color")
+			copyProperty(coat_arith, rsMaterial, "inputB", "overall_color")
+			connectProperty(coat_arith, "out", rprMaterial, "coatColor")
+		else:
+			copyProperty(rprMaterial, rsMaterial, "coatColor", "coat_color")
 
 		copyProperty(rprMaterial, rsMaterial, "coatWeight", "coat_weight")
 		copyProperty(rprMaterial, rsMaterial, "coatRoughness", "coat_roughness")
@@ -2666,7 +3047,16 @@ def convertMaterial(rsMaterial, source):
 		"RedshiftSprite": convertRedshiftSprite,
 		"RedshiftSubSurfaceScatter": convertRedshiftSubSurfaceScatter,
 		##utilities
+		"clamp": convertUnsupportedNode,
+		"colorCondition": convertUnsupportedNode,
+		"colorComposite": convertColorComposite,
+		"blendColors": convertBlendColors,
+		"luminance": convertLuminance,
+		"reverse": convertReverse,
 		"bump2d": convertbump2d,
+		"premultiply": convertPreMultiply,
+		"channels": convertChannels,
+		"vectorProduct": convertVectorProduct,
 		"multiplyDivide": convertmultiplyDivide,
 		"RedshiftBumpMap": convertRedshiftBumpMap,
 		"RedshiftNormalMap": convertRedshiftNormalMap,
