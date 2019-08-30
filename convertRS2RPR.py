@@ -1566,13 +1566,52 @@ def convertRedshiftCarPaint(rsMaterial, source):
 
 		# Fields conversion
 
-		copyProperty(rprMaterial, rsMaterial, "diffuseColor", "base_color")
-		copyProperty(rprMaterial, rsMaterial, "diffuseWeight", "diffuse_weight")
+		# Mixing diffuse color
+		incident_lookup = cmds.shadingNode("RPRLookup", asUtility=True)
+		incident_lookup = cmds.rename(incident_lookup, "incident_lookup")
+		setProperty(incident_lookup, "type", 3)
 
+		normal_lookup = cmds.shadingNode("RPRLookup", asUtility=True)
+		normal_lookup = cmds.rename(normal_lookup, "normal_lookup")
+		setProperty(normal_lookup, "type", 1)
+
+		dot_product = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		dot_product = cmds.rename(dot_product, "dot_product")
+		setProperty(dot_product, "operation", 11)
+		connectProperty(normal_lookup, "out", dot_product, "inputA")
+		connectProperty(incident_lookup, "out", dot_product, "inputB")
+
+		absolute = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		absolute = cmds.rename(absolute, "absolute")
+		setProperty(absolute, "operation", 25)
+		connectProperty(dot_product, "out", absolute, "inputA")
+		setProperty(absolute, "inputB", (0, 0, 0))
+
+		reverse = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		reverse = cmds.rename(reverse, "reverse")
+		setProperty(reverse, "operation", 1)
+		setProperty(reverse, "inputA", (1, 1, 1))
+		connectProperty(absolute, "out", reverse, "inputB")
+
+		pow_curvefactor = cmds.shadingNode("RPRArithmetic", asUtility=True)
+		pow_curvefactor = cmds.rename(pow_curvefactor, "pow_curvefactor")
+		setProperty(pow_curvefactor, "operation", 15)
+		connectProperty(reverse, "out", pow_curvefactor, "inputA")
+		copyProperty(pow_curvefactor, rsMaterial, "inputB", "edge_color_bias")
+
+		blend_pigment_edge = cmds.shadingNode("RPRBlendValue", asUtility=True)
+		blend_pigment_edge = cmds.rename(blend_pigment_edge, "blend_pigment_edge")
+		copyProperty(blend_pigment_edge, rsMaterial, "inputA", "base_color")
+		copyProperty(blend_pigment_edge, rsMaterial, "inputB", "edge_color")
+		connectProperty(pow_curvefactor, "out", blend_pigment_edge, "weight")
+		connectProperty(blend_pigment_edge, "out", rprMaterial, "diffuseColor")
+
+		copyProperty(rprMaterial, rsMaterial, "diffuseWeight", "diffuse_weight")
 		setProperty(rprMaterial, "diffuseRoughness", 0.5)
 
 		copyProperty(rprMaterial, rsMaterial, "reflectColor", "spec_color")
 		copyProperty(rprMaterial, rsMaterial, "reflectWeight", "spec_weight")
+		invertValue(rprMaterial, rsMaterial, "reflectRoughness", "spec_gloss")
 
 		invertValue(rprMaterial, rsMaterial, "coatRoughness", "clearcoat_gloss")
 
