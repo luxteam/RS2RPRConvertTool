@@ -412,6 +412,16 @@ def convertbump2d(rs, source):
 	if cmds.objExists(rs + "_rpr"):
 		rpr = rs + "_rpr"
 	else:
+		bumpConnect = cmds.listConnections(rs + ".bumpValue")
+		if bumpConnect:
+			input_type = cmds.objectType(bumpConnect[0])
+			if input_type == "RedshiftRoundCorners":
+				rpr = convertUnsupportedNode(rs, source, "_UNSUPPORTED_BUMP")
+				return rpr
+		else:
+			rpr = convertUnsupportedNode(rs, source, "_UNSUPPORTED_BUMP")
+			return rpr
+
 		bump_type = getProperty(rs, "bumpInterp")
 		if not bump_type:
 			rpr = cmds.shadingNode("RPRBump", asUtility=True)
@@ -424,10 +434,7 @@ def convertbump2d(rs, source):
 		start_log(rs, rpr)
 
 		# Fields conversion
-		bumpConnections = cmds.listConnections(rs + ".bumpValue", type="file")
-		if bumpConnections:
-			connectProperty(bumpConnections[0], "outColor", rpr, "color")
-
+		copyProperty(rpr, rs, "color", "bumpValue")
 		copyProperty(rpr, rs, "strength", "bumpDepth")
 
 		# Logging to file
@@ -904,6 +911,56 @@ def convertRedshiftNormalMap(rs, source):
 	return rpr
 
 
+def convertRedshiftNoise(rs, source):
+
+	if cmds.objExists(rs + "_rpr"):
+		rpr = rs + "_rpr"
+	else:
+		noiseType = getProperty(rs, "noise_type")
+		
+		if noiseType == 0:
+			rpr = cmds.shadingNode("simplexNoise", asUtility=True)
+		elif noiseType == 2:
+			rpr = cmds.shadingNode("fractal", asUtility=True)
+		elif noiseType == 3:
+			rpr = cmds.shadingNode("noise", asUtility=True)
+
+		rpr = cmds.rename(rpr, rs + "_rpr")
+
+		texture = cmds.shadingNode("place2dTexture", asUtility=True)
+
+		connectProperty(texture, "outUV", rpr, "uv")
+		connectProperty(texture, "outUvFilterSize", rpr, "uvFilterSize")
+		setProperty(texture, "repeatU", getProperty(rs, "coord_scale_global") * getProperty(rs, "coord_scale0"))
+		setProperty(texture, "repeatV", getProperty(rs, "coord_scale_global") * getProperty(rs, "coord_scale1"))
+		copyProperty(texture, rs, "offsetU", "coord_offset0")
+		copyProperty(texture, rs, "offsetV", "coord_offset1")
+
+		# Logging to file (start)
+		start_log(rs, rpr)
+
+		setProperty(rpr, "amplitude", getProperty(rs, "noise_gain") / 2)
+
+		if noiseType == 0:
+			setProperty(rpr, "noiseType", 1)
+			copyProperty(rpr, rs, "octaves", "noise_complexity")
+			copyProperty(rpr, rs, "frequency", "noise_scale")
+			copyProperty(rpr, rs, "distortionU", "distort")
+			copyProperty(rpr, rs, "distortionV", "distort")
+			copyProperty(rpr, rs, "distortionRatio", "distort_scale")
+		elif noiseType == 2:
+			copyProperty(rpr, rs, "frequencyRatio", "noise_scale")
+		elif noiseType == 3:
+			copyProperty(rpr, rs, "depthMax", "noise_complexity")
+			copyProperty(rpr, rs, "frequencyRatio", "noise_scale")
+
+		# Logging to file (end)
+		end_log(rs)
+
+	rpr += "." + source
+	return rpr
+
+
 def convertRedshiftAmbientOcclusion(rs, source):
 
 	if cmds.objExists(rs + "_rpr"):
@@ -1156,13 +1213,13 @@ def convertStandartNode(rsMaterial, source):
 
 
 # unsupported utilities
-def convertUnsupportedNode(rsMaterial, source):
+def convertUnsupportedNode(rsMaterial, source, postfix="_UNSUPPORTED_NODE"):
 
-	if cmds.objExists(rsMaterial + "_UNSUPPORTED_NODE"):
-		rpr = rsMaterial + "_UNSUPPORTED_NODE"
+	if cmds.objExists(rsMaterial + postfix):
+		rpr = rsMaterial + postfix
 	else:
 		rpr = cmds.shadingNode("RPRArithmetic", asUtility=True)
-		rpr = cmds.rename(rpr, rsMaterial + "_UNSUPPORTED_NODE")
+		rpr = cmds.rename(rpr, rsMaterial + postfix)
 
 		# Logging to file
 		start_log(rsMaterial, rpr)
@@ -3085,7 +3142,7 @@ def convertMaterial(rsMaterial, source):
 		"RedshiftSkin": convertRedshiftSkin,
 		"RedshiftSprite": convertRedshiftSprite,
 		"RedshiftSubSurfaceScatter": convertRedshiftSubSurfaceScatter,
-		##utilities
+		#utilities
 		"clamp": convertUnsupportedNode,
 		"colorCondition": convertUnsupportedNode,
 		"colorComposite": convertColorComposite,
@@ -3103,7 +3160,7 @@ def convertMaterial(rsMaterial, source):
 		"RedshiftFresnel": convertRedshiftFresnel,
 		"RedshiftColorLayer": convertRedshiftColorLayer,
 		"RedshiftBumpBlender": convertRedshiftBumpBlender,
-		#"RedshiftNoise": convertRedshiftNoise
+		"RedshiftNoise": convertRedshiftNoise
 		
 	}
 
@@ -3215,10 +3272,28 @@ def convertScene():
 
 	# Check plugins
 	if not cmds.pluginInfo("redshift4maya", q=True, loaded=True):
-		cmds.loadPlugin("redshift4maya")
+		try:
+			cmds.loadPlugin("redshift4maya", quiet=True)
+		except Exception as ex:
+			response = cmds.confirmDialog(title="Error",
+							  message=("Redshift plugin is not installed.\nInstall Redshift plugin before conversion."),
+							  button=["OK"],
+							  defaultButton="OK",
+							  cancelButton="OK",
+							  dismissString="OK")
+			exit("Redshift plugin is not installed")
 
 	if not cmds.pluginInfo("RadeonProRender", q=True, loaded=True):
-		cmds.loadPlugin("RadeonProRender")
+		try:
+			cmds.loadPlugin("RadeonProRender", quiet=True)
+		except Exception as ex:
+			response = cmds.confirmDialog(title="Error",
+							  message=("RadeonProRender plugin is not installed.\nInstall RadeonProRender plugin before conversion."),
+							  button=["OK"],
+							  defaultButton="OK",
+							  cancelButton="OK",
+							  dismissString="OK")
+			exit("RadeonProRender plugin is not installed")
 
 	# redshift engine set before conversion
 	setProperty("defaultRenderGlobals","currentRenderer", "redshift")
