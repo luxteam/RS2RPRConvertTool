@@ -1031,6 +1031,16 @@ def convertRedshiftBumpMap(rs, source):
 	if cmds.objExists(rs + "_rpr"):
 		rpr = rs + "_rpr"
 	else:
+		bumpConnect = cmds.listConnections(rs + ".input")
+		if bumpConnect:
+			input_type = cmds.objectType(bumpConnect[0])
+			if input_type == "RedshiftRoundCorners":
+				rpr = convertUnsupportedNode(rs, source, "_UNSUPPORTED_BUMP")
+				return rpr
+		else:
+			rpr = convertUnsupportedNode(rs, source, "_UNSUPPORTED_BUMP")
+			return rpr
+
 		inputType = getProperty(rs, "inputType")
 		if inputType == 0:
 			rpr = cmds.shadingNode("RPRBump", asUtility=True)
