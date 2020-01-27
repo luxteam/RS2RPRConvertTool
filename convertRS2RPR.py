@@ -3,6 +3,7 @@
 import maya.mel as mel
 import maya.cmds as cmds
 import time
+import os
 import math
 import traceback
 
@@ -263,7 +264,6 @@ def connectProperty(source_name, source_attr, rpr_name, rpr_attr):
 				cmds.connectAttr(source, rpr_field1, force=True)
 				cmds.connectAttr(source, rpr_field2, force=True)
 				cmds.connectAttr(source, rpr_field3, force=True)
-
 		write_own_property_log(u"Created connection from {} to {}.".format(source, rpr_field).encode('utf-8'))
 	except Exception as ex:
 		traceback.print_exc()
