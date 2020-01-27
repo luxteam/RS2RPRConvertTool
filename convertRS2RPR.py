@@ -2515,7 +2515,7 @@ def convertRedshiftMatteShadowCatcher(rsMaterial, source):
 		rprMaterial = rsMaterial + "_rpr"
 	else:
 		# Creating new Uber material
-		rprMaterial = cmds.shadingNode("RPRShadowCatcherMaterial", asShader=True)
+		rprMaterial = cmds.shadingNode("RPRMatteMaterial", asShader=True)
 		rprMaterial = cmds.rename(rprMaterial, (rsMaterial + "_rpr"))
 
 		# Check shading engine in rsMaterial
