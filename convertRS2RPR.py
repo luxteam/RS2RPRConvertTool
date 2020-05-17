@@ -7,6 +7,7 @@ import os
 import math
 import traceback
 
+RS2RPR_CONVERTER_VERSION = "2.3.1"
 
 # log functions
 
@@ -3539,7 +3540,7 @@ def auto_launch():
 	cleanScene()
 
 def manual_launch():
-	print("Convertion starts!")
+	print("Conversion start! Converter version: {}".format(RS2RPR_CONVERTER_VERSION))
 	startTime = 0
 	testTime = 0
 	startTime = time.time()
