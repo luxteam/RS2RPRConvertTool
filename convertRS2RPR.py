@@ -3298,7 +3298,8 @@ def cleanScene():
 		if isRedshiftType(material):
 			shEng = cmds.listConnections(material, type="shadingEngine")
 			try:
-				cmds.delete(shEng[0])
+				if shEng:
+					cmds.delete(shEng[0])
 				cmds.delete(material)
 			except:
 				pass
