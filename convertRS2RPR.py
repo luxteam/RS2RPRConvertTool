@@ -11,14 +11,16 @@
 
 # Redshift to RadeonProRender Converter
 
-import maya.mel as mel
-import maya.cmds as cmds
 import time
 import os
 import math
 import traceback
 
-RS2RPR_CONVERTER_VERSION = "2.4.0"
+import maya.mel as mel
+import maya.cmds as cmds
+from maya.plugin.evaluator.cache_preferences import CachePreferenceEnabled
+
+RS2RPR_CONVERTER_VERSION = "2.4.1"
 
 # log functions
 
@@ -3383,6 +3385,13 @@ def repathScene():
 
 def convertScene():
 
+	# Disable caching
+	maya_version = cmds.about(apiVersion=True)
+	if maya_version > 20190200:
+		cache_preference_enabled = CachePreferenceEnabled().get_value()
+		if cache_preference_enabled:
+			CachePreferenceEnabled().set_value(False)
+
 	# Repath paths in scene files (filePathEditor)
 	repathScene()
 
@@ -3545,6 +3554,10 @@ def convertScene():
 				setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure", getProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure") / 2)
 			elif dofUseBokehImage == 1 and dofBokehNormalizationMode == 0:
 				setProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure", getProperty("RadeonProRenderGlobals", "toneMappingPhotolinearExposure") / 10)
+
+	if maya_version > 20190200:
+		if cache_preference_enabled:
+			CachePreferenceEnabled().set_value(True)
 
 
 def auto_launch():
