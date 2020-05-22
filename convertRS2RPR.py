@@ -20,7 +20,7 @@ import maya.mel as mel
 import maya.cmds as cmds
 from maya.plugin.evaluator.cache_preferences import CachePreferenceEnabled
 
-RS2RPR_CONVERTER_VERSION = "2.4.1"
+RS2RPR_CONVERTER_VERSION = "2.5.1"
 
 # log functions
 
