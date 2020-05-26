@@ -19,7 +19,7 @@ import traceback
 import maya.mel as mel
 import maya.cmds as cmds
 
-RS2RPR_CONVERTER_VERSION = "2.4.2"
+RS2RPR_CONVERTER_VERSION = "2.5.2"
 
 # log functions
 
