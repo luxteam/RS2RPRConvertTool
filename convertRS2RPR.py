@@ -18,9 +18,8 @@ import traceback
 
 import maya.mel as mel
 import maya.cmds as cmds
-from maya.plugin.evaluator.cache_preferences import CachePreferenceEnabled
 
-RS2RPR_CONVERTER_VERSION = "2.4.1"
+RS2RPR_CONVERTER_VERSION = "2.4.2"
 
 # log functions
 
@@ -3388,6 +3387,7 @@ def convertScene():
 	# Disable caching
 	maya_version = cmds.about(apiVersion=True)
 	if maya_version > 20190200:
+		from maya.plugin.evaluator.cache_preferences import CachePreferenceEnabled
 		cache_preference_enabled = CachePreferenceEnabled().get_value()
 		if cache_preference_enabled:
 			CachePreferenceEnabled().set_value(False)
@@ -3421,7 +3421,7 @@ def convertScene():
 			exit("RadeonProRender plugin is not installed")
 
 	# redshift engine set before conversion
-	setProperty("defaultRenderGlobals","currentRenderer", "redshift")
+	setProperty("defaultRenderGlobals", "currentRenderer", "redshift")
 
 	# Convert RedshiftEnvironment
 	env = cmds.ls(type="RedshiftEnvironment")
