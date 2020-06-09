@@ -1,48 +1,60 @@
-# RS2RPRConvertTool
+# Redshift to Radeon ProRender converter tool
 
-1. Download scene, open it in Maya 2017.
-2. Drag and drop convertRS2RPR.mel on scene. 
-3. Script will be convert all supported material & utilities and create & open log file.
 
-WE DON'T SUPPORT:   
+## Supported version 
+- Autodesk Maya 2019
+- Autodesk Maya 2020
+- Radeon ProRender Plugin 2.9.4 and later
+- Redshift Plugin 2.6.54 and later
 
-1) Materials:   
-    
-     Hair   
-     Incandescent    
-     MaterialBlender   
-     ShaderSwitch  
-     Skin  
-            
-2) Utilities  
-    
-     AmbientOcclusion  
-     AttributeLookup  
-     BumpBlender     
-     CameraMap  
-     ColorCorrection  
-     ColorLayer  
-     Curvature  
-     Displacement  
-     DisplacementBlender  
-     Fresnel  
-     HairPosition  
-     HairRandomColor  
-     RaySwitch  
-     RoundCorne  
-     Shave  
-     State  
-     TriPlanar  
-     UserDataColor  
-     UserDataInteger  
-     UserDataScalar  
-     UserDataVector  
-     VertexColor  
-     WireFrame  
-        
-3) Lights  
-   
-     IESLightShape  
-     PhysicalLightShape  
-     PhysicalSunShape  
-     PortalLightShape  
+## How to use script
+- You can use script built into the Radeon ProRender plugin
+- You can drag and drop conversion script from this repository to Maya scene
+- You can run conversion script from this repository using Script Editor
+
+## Supported materials
+- Redshift Material
+- Redshift Architectural
+- Redshift CarPaint
+- Redshift Incandescent
+- Redshift Material Blender
+- Redshift MatteShadowCatcher
+- Redshift Skin
+- Redshift Sprite
+- Redshift SubSurfaceScatter
+
+## Supported utilities 
+- Redshift BumpMap
+- Redshift NormalMap
+- Redshift AmbientOcclusion
+- Redshift Fresnel
+- Redshift ColorLayer
+- Redshift Noise
+- Redshift UserDataInteger
+- Redshift UserDataScalar
+- Redshift UserDataColor
+
+## Supported lights
+- Redshift PhysicalLight
+- Redshift DomeLight
+- Redshift PortalLight
+- Redshift IESLight
+- Redshift PhysicalSun
+- Redshift Environment
+- Redshift PhysicalSky
+- Redshift VolumeScattering
+
+## Stadard maya utilities, which will be converted
+- colorComposite
+- blendColors
+- luminance
+- reverse
+- bump2d
+- premultiply
+- channels
+- vectorProduct
+- multiplyDivide
+- clamp (unsupported)
+- colorCondition (unsupported)
+
+

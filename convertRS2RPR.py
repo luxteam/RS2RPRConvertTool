@@ -22,7 +22,6 @@ import maya.cmds as cmds
 RS2RPR_CONVERTER_VERSION = "2.5.2"
 
 # log functions
-
 def write_converted_property_log(rpr_name, rs_name, rpr_attr, rs_attr):
 
 	try:
@@ -73,7 +72,6 @@ def end_log(rs):
 		
 
 # additional fucntions
-
 def copyProperty(rpr_name, conv_name, rpr_attr, conv_attr):
 
 	# full name of attribute
